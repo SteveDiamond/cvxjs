@@ -1,5 +1,5 @@
 import { Expr, ArrayData, newExprId } from './expression.js';
-import { Shape, scalar, vector, matrix, size } from './shape.js';
+import { vector, matrix } from './shape.js';
 
 /**
  * Create a constant expression from various input types.
@@ -75,7 +75,9 @@ export function toArrayData(
   // Validate rectangular shape
   for (let i = 1; i < rows; i++) {
     if (arr2d[i]!.length !== cols) {
-      throw new Error(`Inconsistent row lengths in matrix: row 0 has ${cols} cols, row ${i} has ${arr2d[i]!.length}`);
+      throw new Error(
+        `Inconsistent row lengths in matrix: row 0 has ${cols} cols, row ${i} has ${arr2d[i]!.length}`
+      );
     }
   }
 

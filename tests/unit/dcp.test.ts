@@ -154,15 +154,15 @@ describe('Curvature', () => {
     it('convex + concave is unknown', () => {
       const x = variable(5);
       const y = variable(5);
-      const convexPart = norm2(x);
-      const concavePart = minimum(y, constant([0, 0, 0, 0, 0]));
+      const _convexPart = norm2(x);
+      const _concavePart = minimum(y, constant([0, 0, 0, 0, 0]));
       // Note: This would actually be unknown due to shape mismatch
       // Let's test with scalars
       const a = variable(1);
       const b = variable(1);
       // sum is scalar
-      const cv = sumSquares(a);  // convex scalar
-      const cc = minimum(b, constant(0));  // concave scalar
+      const cv = sumSquares(a); // convex scalar
+      const cc = minimum(b, constant(0)); // concave scalar
       expect(curvature(add(cv, cc))).toBe(Curvature.Unknown);
     });
   });

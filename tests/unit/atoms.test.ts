@@ -1,10 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import {
-  variable,
-  constant,
-  exprShape,
-  resetExprIds,
-} from '../../src/index.js';
+import { variable, constant, exprShape, resetExprIds } from '../../src/index.js';
 import {
   add,
   sub,
@@ -65,7 +60,7 @@ describe('Affine atoms', () => {
       const x = variable(5);
       const y = variable(5);
       const z = sub(x, y);
-      expect(z.kind).toBe('add');  // sub is implemented as add(x, neg(y))
+      expect(z.kind).toBe('add'); // sub is implemented as add(x, neg(y))
     });
   });
 
@@ -79,7 +74,7 @@ describe('Affine atoms', () => {
     it('cancels double negation', () => {
       const x = variable(5);
       const y = neg(neg(x));
-      expect(y).toBe(x);  // Should return the original
+      expect(y).toBe(x); // Should return the original
     });
   });
 
@@ -102,7 +97,10 @@ describe('Affine atoms', () => {
 
   describe('matmul', () => {
     it('performs matrix-vector multiplication', () => {
-      const A = constant([[1, 2, 3], [4, 5, 6]]);  // 2x3
+      const A = constant([
+        [1, 2, 3],
+        [4, 5, 6],
+      ]); // 2x3
       const x = variable(3);
       const y = matmul(A, x);
       expect(y.kind).toBe('matmul');
@@ -110,15 +108,25 @@ describe('Affine atoms', () => {
     });
 
     it('performs matrix-matrix multiplication', () => {
-      const A = constant([[1, 2, 3], [4, 5, 6]]);  // 2x3
-      const B = constant([[1, 2], [3, 4], [5, 6]]);  // 3x2
+      const A = constant([
+        [1, 2, 3],
+        [4, 5, 6],
+      ]); // 2x3
+      const B = constant([
+        [1, 2],
+        [3, 4],
+        [5, 6],
+      ]); // 3x2
       const C = matmul(A, B);
       expect(shapeEquals(exprShape(C), matrix(2, 2))).toBe(true);
     });
 
     it('throws on incompatible dimensions', () => {
-      const A = constant([[1, 2, 3], [4, 5, 6]]);  // 2x3
-      const x = variable(4);  // Wrong size
+      const A = constant([
+        [1, 2, 3],
+        [4, 5, 6],
+      ]); // 2x3
+      const x = variable(4); // Wrong size
       expect(() => matmul(A, x)).toThrow();
     });
   });
@@ -133,8 +141,8 @@ describe('Affine atoms', () => {
 
     it('sums along axis', () => {
       const A = variable([3, 4]);
-      const s0 = sum(A, 0);  // Sum along rows -> 4 columns
-      const s1 = sum(A, 1);  // Sum along cols -> 3 rows
+      const s0 = sum(A, 0); // Sum along rows -> 4 columns
+      const s1 = sum(A, 1); // Sum along cols -> 3 rows
       expect(s0.kind).toBe('sum');
       expect(s1.kind).toBe('sum');
     });
@@ -334,7 +342,11 @@ describe('Nonlinear atoms', () => {
   describe('quadForm', () => {
     it('returns scalar', () => {
       const x = variable(3);
-      const P = constant([[1, 0, 0], [0, 1, 0], [0, 0, 1]]);
+      const P = constant([
+        [1, 0, 0],
+        [0, 1, 0],
+        [0, 0, 1],
+      ]);
       const q = quadForm(x, P);
       expect(q.kind).toBe('quadForm');
       expect(shapeEquals(exprShape(q), scalar())).toBe(true);
@@ -342,13 +354,20 @@ describe('Nonlinear atoms', () => {
 
     it('throws on non-vector x', () => {
       const X = variable([3, 3]);
-      const P = constant([[1, 0, 0], [0, 1, 0], [0, 0, 1]]);
+      const P = constant([
+        [1, 0, 0],
+        [0, 1, 0],
+        [0, 0, 1],
+      ]);
       expect(() => quadForm(X, P)).toThrow();
     });
 
     it('throws on incompatible P', () => {
       const x = variable(3);
-      const P = constant([[1, 0], [0, 1]]);  // 2x2, should be 3x3
+      const P = constant([
+        [1, 0],
+        [0, 1],
+      ]); // 2x2, should be 3x3
       expect(() => quadForm(x, P)).toThrow();
     });
   });

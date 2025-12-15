@@ -1,14 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import {
-  variable,
-  constant,
-  eq,
-  le,
-  ge,
-  Problem,
-  resetExprIds,
-  DcpError,
-} from '../../src/index.js';
+import { variable, eq, le, ge, Problem, resetExprIds, DcpError } from '../../src/index.js';
 import { sum, norm2, sumSquares, minimum, neg } from '../../src/atoms/index.js';
 
 describe('Problem', () => {
@@ -25,7 +16,7 @@ describe('Problem', () => {
 
     it('creates maximization problem', () => {
       const x = variable(5);
-      const p = Problem.maximize(neg(sumSquares(x)));  // concave objective
+      const p = Problem.maximize(neg(sumSquares(x))); // concave objective
       expect(p.sense).toBe('maximize');
     });
 
@@ -47,8 +38,7 @@ describe('Problem', () => {
 
     it('sets solver settings', () => {
       const x = variable(5);
-      const p = Problem.minimize(sum(x))
-        .settings({ verbose: true, maxIter: 100 });
+      const p = Problem.minimize(sum(x)).settings({ verbose: true, maxIter: 100 });
 
       // Settings are stored internally (no public accessor yet)
       expect(p).toBeDefined();
@@ -58,16 +48,14 @@ describe('Problem', () => {
   describe('DCP validation', () => {
     it('accepts convex minimization', () => {
       const x = variable(5);
-      const p = Problem.minimize(sumSquares(x))
-        .subjectTo([ge(x, 1)]);
+      const p = Problem.minimize(sumSquares(x)).subjectTo([ge(x, 1)]);
 
       expect(p.isDcp()).toBe(true);
     });
 
     it('accepts affine minimization', () => {
       const x = variable(5);
-      const p = Problem.minimize(sum(x))
-        .subjectTo([ge(x, 0)]);
+      const p = Problem.minimize(sum(x)).subjectTo([ge(x, 0)]);
 
       expect(p.isDcp()).toBe(true);
     });
@@ -84,8 +72,7 @@ describe('Problem', () => {
     it('accepts concave maximization', () => {
       const x = variable(5);
       // -||x||^2 is concave
-      const p = Problem.maximize(neg(sumSquares(x)))
-        .subjectTo([ge(x, 0)]);
+      const p = Problem.maximize(neg(sumSquares(x))).subjectTo([ge(x, 0)]);
 
       expect(p.isDcp()).toBe(true);
     });
@@ -101,13 +88,11 @@ describe('Problem', () => {
     it('validates constraints', () => {
       const x = variable(5);
       // Valid problem
-      const p1 = Problem.minimize(sum(x))
-        .subjectTo([eq(sum(x), 5), ge(x, 0)]);
+      const p1 = Problem.minimize(sum(x)).subjectTo([eq(sum(x), 5), ge(x, 0)]);
       expect(p1.isDcp()).toBe(true);
 
       // Invalid constraint (equality with convex)
-      const p2 = Problem.minimize(sum(x))
-        .subjectTo([eq(norm2(x), 1)]);
+      const p2 = Problem.minimize(sum(x)).subjectTo([eq(norm2(x), 1)]);
       expect(p2.isDcp()).toBe(false);
     });
   });
@@ -116,8 +101,7 @@ describe('Problem', () => {
     it('collects all variables', () => {
       const x = variable(5);
       const y = variable(3);
-      const p = Problem.minimize(sum(x))
-        .subjectTo([ge(y, 0)]);
+      const p = Problem.minimize(sum(x)).subjectTo([ge(y, 0)]);
 
       expect(p.variables.size).toBe(2);
     });
@@ -134,16 +118,14 @@ describe('Problem', () => {
 
     it('throws on invalid constraint', () => {
       const x = variable(5);
-      const p = Problem.minimize(sum(x))
-        .subjectTo([eq(norm2(x), 1)]);
+      const p = Problem.minimize(sum(x)).subjectTo([eq(norm2(x), 1)]);
 
       expect(() => p.validateDcp()).toThrow(DcpError);
     });
 
     it('does not throw on valid problem', () => {
       const x = variable(5);
-      const p = Problem.minimize(sumSquares(x))
-        .subjectTo([ge(x, 1)]);
+      const p = Problem.minimize(sumSquares(x)).subjectTo([ge(x, 1)]);
 
       expect(() => p.validateDcp()).not.toThrow();
     });

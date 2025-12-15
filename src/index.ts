@@ -49,21 +49,10 @@ export {
 } from './expr/index.js';
 
 // === Constant Creation ===
-export {
-  constant,
-  zeros,
-  ones,
-  eye,
-  isConstant,
-} from './expr/index.js';
+export { constant, zeros, ones, eye, isConstant } from './expr/index.js';
 
 // === Expression Utilities ===
-export {
-  exprShape,
-  exprVariables,
-  isConstantExpr,
-  resetExprIds,
-} from './expr/index.js';
+export { exprShape, exprVariables, isConstantExpr, resetExprIds } from './expr/index.js';
 
 // === Affine Atoms ===
 export {
@@ -146,26 +135,14 @@ export {
 
 // === Constraints ===
 export type { Constraint } from './constraints/index.js';
-export {
-  eq,
-  le,
-  ge,
-  soc,
-  constraintVariables,
-  isDcpConstraint,
-} from './constraints/index.js';
+export { eq, le, ge, soc, constraintVariables, isDcpConstraint } from './constraints/index.js';
 
 // === Problem ===
 export type { ObjectiveSense, SolveStatus, Solution, SolverSettings } from './problem.js';
 export { Problem } from './problem.js';
 
 // === Solver ===
-export {
-  loadWasm,
-  testWasm,
-  clarabelVersion,
-  solveConic,
-} from './solver/index.js';
+export { loadWasm, testWasm, clarabelVersion, solveConic } from './solver/index.js';
 
 export type { ConicSolveResult } from './solver/index.js';
 

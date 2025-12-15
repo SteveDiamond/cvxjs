@@ -12,14 +12,7 @@
  *   x = parameters to fit (n)
  */
 
-import {
-  variable,
-  constant,
-  sub,
-  matmul,
-  norm2,
-  Problem,
-} from '../src/index.js';
+import { variable, constant, sub, matmul, norm2, Problem } from '../src/index.js';
 
 async function leastSquares() {
   console.log('=== Least Squares Regression ===\n');

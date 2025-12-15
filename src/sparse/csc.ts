@@ -149,11 +149,7 @@ export function cscFromTriplets(
 /**
  * Create CSC matrix from dense array (column-major order).
  */
-export function cscFromDense(
-  nrows: number,
-  ncols: number,
-  data: Float64Array
-): CscMatrix {
+export function cscFromDense(nrows: number, ncols: number, data: Float64Array): CscMatrix {
   const rows: number[] = [];
   const cols: number[] = [];
   const vals: number[] = [];
@@ -210,8 +206,8 @@ export function cscScale(A: CscMatrix, scalar: number): CscMatrix {
   return {
     nrows: A.nrows,
     ncols: A.ncols,
-    colPtr: A.colPtr,  // Shared (immutable)
-    rowIdx: A.rowIdx,  // Shared (immutable)
+    colPtr: A.colPtr, // Shared (immutable)
+    rowIdx: A.rowIdx, // Shared (immutable)
     values,
   };
 }
@@ -221,7 +217,9 @@ export function cscScale(A: CscMatrix, scalar: number): CscMatrix {
  */
 export function cscAdd(A: CscMatrix, B: CscMatrix): CscMatrix {
   if (A.nrows !== B.nrows || A.ncols !== B.ncols) {
-    throw new Error(`Cannot add matrices with different shapes: ${A.nrows}×${A.ncols} vs ${B.nrows}×${B.ncols}`);
+    throw new Error(
+      `Cannot add matrices with different shapes: ${A.nrows}×${A.ncols} vs ${B.nrows}×${B.ncols}`
+    );
   }
 
   const rows: number[] = [];
@@ -259,7 +257,9 @@ export function cscSub(A: CscMatrix, B: CscMatrix): CscMatrix {
  */
 export function cscVstack(A: CscMatrix, B: CscMatrix): CscMatrix {
   if (A.ncols !== B.ncols) {
-    throw new Error(`Cannot vstack matrices with different column counts: ${A.ncols} vs ${B.ncols}`);
+    throw new Error(
+      `Cannot vstack matrices with different column counts: ${A.ncols} vs ${B.ncols}`
+    );
   }
 
   const nrows = A.nrows + B.nrows;

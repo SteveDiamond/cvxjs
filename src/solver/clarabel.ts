@@ -52,9 +52,7 @@ let wasmLoading: Promise<ClarabelWasm> | null = null;
  */
 function isNode(): boolean {
   return (
-    typeof process !== 'undefined' &&
-    process.versions != null &&
-    process.versions.node != null
+    typeof process !== 'undefined' && process.versions != null && process.versions.node != null
   );
 }
 
@@ -101,9 +99,7 @@ export async function loadWasm(): Promise<ClarabelWasm> {
  */
 export function getWasm(): ClarabelWasm {
   if (!wasmInstance) {
-    throw new SolverError(
-      'WASM not loaded. Call loadWasm() first or use solveConic().'
-    );
+    throw new SolverError('WASM not loaded. Call loadWasm() first or use solveConic().');
   }
   return wasmInstance;
 }

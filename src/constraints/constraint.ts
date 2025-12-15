@@ -1,7 +1,6 @@
 import { Expr, exprShape, exprVariables, ExprId } from '../expr/index.js';
-import { curvature, Curvature, isConvex, isConcave, isAffine } from '../dcp/index.js';
+import { curvature, isConcave, isAffine } from '../dcp/index.js';
 import { sub, toExpr } from '../atoms/affine.js';
-import { constant } from '../expr/constant.js';
 import { ShapeError, DcpError } from '../error.js';
 import { shapeToString, broadcastShape } from '../expr/shape.js';
 

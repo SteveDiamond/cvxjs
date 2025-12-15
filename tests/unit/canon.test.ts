@@ -1,12 +1,19 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { variable, constant, resetExprIds } from '../../src/index.js';
 import {
-  variable,
-  constant,
-  resetExprIds,
-  exprVariables,
-  exprShape,
-} from '../../src/index.js';
-import { add, sum, neg, mul, norm2, norm1, abs, pos, maximum, minimum, index, hstack } from '../../src/atoms/index.js';
+  add,
+  sum,
+  neg,
+  mul,
+  norm2,
+  norm1,
+  abs,
+  pos,
+  maximum,
+  minimum,
+  index,
+  hstack,
+} from '../../src/atoms/index.js';
 import {
   linExprVariable,
   linExprConstant,
@@ -20,7 +27,6 @@ import {
   buildVariableMap,
   stuffProblem,
 } from '../../src/canon/index.js';
-import { size } from '../../src/expr/shape.js';
 
 describe('LinExpr', () => {
   beforeEach(() => {
@@ -84,7 +90,7 @@ describe('LinExpr', () => {
     const summed = linExprSum(lin);
 
     expect(summed.rows).toBe(1);
-    expect(summed.constant[0]).toBe(6);  // 1 + 2 + 3
+    expect(summed.constant[0]).toBe(6); // 1 + 2 + 3
   });
 });
 
@@ -179,7 +185,7 @@ describe('Canonicalizer', () => {
 
       // norm1 introduces inequality constraints
       expect(result.rows).toBe(1);
-      expect(canonicalizer.getConstraints().length).toBe(2);  // t >= x and t >= -x
+      expect(canonicalizer.getConstraints().length).toBe(2); // t >= x and t >= -x
       expect(canonicalizer.getAuxVars().length).toBe(1);
     });
 
@@ -214,7 +220,7 @@ describe('Canonicalizer', () => {
       const result = canonicalizer.canonicalize(m);
 
       expect(result.rows).toBe(5);
-      expect(canonicalizer.getConstraints().length).toBe(2);  // t >= x and t >= y
+      expect(canonicalizer.getConstraints().length).toBe(2); // t >= x and t >= y
     });
 
     it('canonicalizes minimum', () => {
@@ -226,7 +232,7 @@ describe('Canonicalizer', () => {
       const result = canonicalizer.canonicalize(m);
 
       expect(result.rows).toBe(5);
-      expect(canonicalizer.getConstraints().length).toBe(2);  // x >= t and y >= t
+      expect(canonicalizer.getConstraints().length).toBe(2); // x >= t and y >= t
     });
   });
 });
@@ -274,11 +280,7 @@ describe('stuffProblem', () => {
     const varSizes = new Map<number, number>();
     varSizes.set(x.id as number, 5);
 
-    const varMap = buildVariableMap(
-      new Set([x.id]),
-      varSizes as Map<any, number>,
-      auxVars
-    );
+    const varMap = buildVariableMap(new Set([x.id]), varSizes as Map<number, number>, auxVars);
 
     const stuffed = stuffProblem(objectiveLinExpr, coneConstraints, varMap, 0);
 

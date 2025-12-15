@@ -6,11 +6,17 @@ import { LinExpr } from './lin-expr.js';
  * These are the standard forms that solvers like Clarabel accept.
  */
 export type ConeConstraint =
-  | { readonly kind: 'zero'; readonly a: LinExpr }        // Ax + b = 0
-  | { readonly kind: 'nonneg'; readonly a: LinExpr }      // Ax + b >= 0
-  | { readonly kind: 'soc'; readonly t: LinExpr; readonly x: LinExpr }  // ||x|| <= t
-  | { readonly kind: 'exp'; readonly x: LinExpr; readonly y: LinExpr; readonly z: LinExpr }  // Exponential cone
-  | { readonly kind: 'power'; readonly x: LinExpr; readonly y: LinExpr; readonly z: LinExpr; readonly alpha: number };  // Power cone
+  | { readonly kind: 'zero'; readonly a: LinExpr } // Ax + b = 0
+  | { readonly kind: 'nonneg'; readonly a: LinExpr } // Ax + b >= 0
+  | { readonly kind: 'soc'; readonly t: LinExpr; readonly x: LinExpr } // ||x|| <= t
+  | { readonly kind: 'exp'; readonly x: LinExpr; readonly y: LinExpr; readonly z: LinExpr } // Exponential cone
+  | {
+      readonly kind: 'power';
+      readonly x: LinExpr;
+      readonly y: LinExpr;
+      readonly z: LinExpr;
+      readonly alpha: number;
+    }; // Power cone
 
 /**
  * Cone dimensions for solver interface.

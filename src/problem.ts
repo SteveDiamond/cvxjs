@@ -1,7 +1,12 @@
-import { Expr, ExprId, exprVariables, exprShape, isVariable, getVariableId } from './expr/index.js';
+import { Expr, ExprId, exprVariables, exprShape } from './expr/index.js';
 import { size } from './expr/shape.js';
-import { Constraint, isDcpConstraint, validateDcpConstraint, constraintVariables } from './constraints/index.js';
-import { curvature, Curvature, isConvex, isConcave } from './dcp/index.js';
+import {
+  Constraint,
+  isDcpConstraint,
+  validateDcpConstraint,
+  constraintVariables,
+} from './constraints/index.js';
+import { curvature, isConvex, isConcave } from './dcp/index.js';
 import { DcpError, SolverError, InfeasibleError, UnboundedError } from './error.js';
 import { isScalar } from './expr/shape.js';
 import { canonicalizeProblem, buildVariableMap, stuffProblem } from './canon/index.js';
@@ -208,14 +213,10 @@ export class Problem {
     const objCurv = curvature(this._objective);
 
     if (this._sense === 'minimize' && !isConvex(objCurv)) {
-      throw new DcpError(
-        `Minimization objective must be convex, got ${objCurv}`
-      );
+      throw new DcpError(`Minimization objective must be convex, got ${objCurv}`);
     }
     if (this._sense === 'maximize' && !isConcave(objCurv)) {
-      throw new DcpError(
-        `Maximization objective must be concave, got ${objCurv}`
-      );
+      throw new DcpError(`Maximization objective must be concave, got ${objCurv}`);
     }
 
     for (const c of this._constraints) {
@@ -255,19 +256,17 @@ export class Problem {
     }
 
     // Canonicalize the problem
-    const { objectiveLinExpr, coneConstraints, auxVars, objectiveOffset } =
-      canonicalizeProblem(this._objective, this._constraints, this._sense);
+    const { objectiveLinExpr, coneConstraints, auxVars, objectiveOffset } = canonicalizeProblem(
+      this._objective,
+      this._constraints,
+      this._sense
+    );
 
     // Build variable mapping
     const varMap = buildVariableMap(varIds, varSizes, auxVars);
 
     // Stuff the problem into standard form
-    const stuffed = stuffProblem(
-      objectiveLinExpr,
-      coneConstraints,
-      varMap,
-      objectiveOffset
-    );
+    const stuffed = stuffProblem(objectiveLinExpr, coneConstraints, varMap, objectiveOffset);
 
     // Call the solver
     const result = await solveConic(

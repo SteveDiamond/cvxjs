@@ -1,5 +1,4 @@
-import { Expr, exprShape, isConstantExpr } from '../expr/index.js';
-import { isScalar } from '../expr/shape.js';
+import { Expr } from '../expr/index.js';
 
 /**
  * Curvature of an expression in disciplined convex programming.

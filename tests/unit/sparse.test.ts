@@ -1,9 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
-  CscMatrix,
   cscEmpty,
   cscIdentity,
-  cscZeros,
   cscFromTriplets,
   cscFromDense,
   cscNnz,
@@ -44,10 +42,11 @@ describe('CSC Sparse Matrix', () => {
 
     it('creates from triplets', () => {
       const A = cscFromTriplets(
-        3, 3,
-        [0, 1, 2],  // rows
-        [0, 1, 2],  // cols
-        [1, 2, 3]   // values
+        3,
+        3,
+        [0, 1, 2], // rows
+        [0, 1, 2], // cols
+        [1, 2, 3] // values
       );
       expect(cscGet(A, 0, 0)).toBe(1);
       expect(cscGet(A, 1, 1)).toBe(2);
@@ -55,13 +54,8 @@ describe('CSC Sparse Matrix', () => {
     });
 
     it('sums duplicate triplets', () => {
-      const A = cscFromTriplets(
-        2, 2,
-        [0, 0, 1],
-        [0, 0, 1],
-        [1, 2, 3]
-      );
-      expect(cscGet(A, 0, 0)).toBe(3);  // 1 + 2
+      const A = cscFromTriplets(2, 2, [0, 0, 1], [0, 0, 1], [1, 2, 3]);
+      expect(cscGet(A, 0, 0)).toBe(3); // 1 + 2
       expect(cscGet(A, 1, 1)).toBe(3);
     });
 
@@ -218,7 +212,7 @@ describe('CSC Sparse Matrix', () => {
       const B = cscClone(A);
 
       expect(cscEquals(A, B)).toBe(true);
-      expect(A.values).not.toBe(B.values);  // Different arrays
+      expect(A.values).not.toBe(B.values); // Different arrays
     });
   });
 

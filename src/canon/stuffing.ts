@@ -2,15 +2,7 @@ import { ExprId } from '../expr/index.js';
 import { LinExpr } from './lin-expr.js';
 import { ConeConstraint, ConeDims, emptyConeDims } from './cone-constraint.js';
 import { AuxVar } from './canonicalizer.js';
-import {
-  CscMatrix,
-  cscEmpty,
-  cscZeros,
-  cscFromTriplets,
-  cscVstack,
-  cscHstack,
-  cscNnz,
-} from '../sparse/index.js';
+import { CscMatrix, cscZeros, cscFromTriplets, cscVstack } from '../sparse/index.js';
 
 /**
  * Variable mapping from expression IDs to solver variable indices.
@@ -131,10 +123,7 @@ export function stuffLinExpr(
 /**
  * Stuff objective linear expression into q vector.
  */
-export function stuffObjective(
-  linExpr: LinExpr,
-  varMap: VariableMap
-): Float64Array {
+export function stuffObjective(linExpr: LinExpr, varMap: VariableMap): Float64Array {
   if (linExpr.rows !== 1) {
     throw new Error(`Objective must be scalar, got ${linExpr.rows} rows`);
   }
@@ -226,7 +215,7 @@ export function stuffProblem(
   //   negate=true: A = -a_coeffs, b = -(-1) * a_const = a_const ✓
   for (const c of nonnegConstraints) {
     if (c.kind !== 'nonneg') continue;
-    const { A, b } = stuffLinExpr(c.a, varMap, true);  // NEGATE for correct sign
+    const { A, b } = stuffLinExpr(c.a, varMap, true); // NEGATE for correct sign
     As.push(A);
     bs.push(b);
     coneDims.nonneg += c.a.rows;
@@ -244,8 +233,8 @@ export function stuffProblem(
   // stuffLinExpr with negate=true gives: A = -coeffs, b = constant
   for (const c of socConstraints) {
     if (c.kind !== 'soc') continue;
-    const { A: At, b: bt } = stuffLinExpr(c.t, varMap, true);  // NEGATE for correct slack
-    const { A: Ax, b: bx } = stuffLinExpr(c.x, varMap, true);  // NEGATE for correct slack
+    const { A: At, b: bt } = stuffLinExpr(c.t, varMap, true); // NEGATE for correct slack
+    const { A: Ax, b: bx } = stuffLinExpr(c.x, varMap, true); // NEGATE for correct slack
 
     // Stack [t; x]
     As.push(cscVstack(At, Ax));

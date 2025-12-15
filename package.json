@@ -31,6 +31,9 @@
     "test:run": "vitest run",
     "test:coverage": "vitest --coverage",
     "lint": "eslint src tests",
+    "lint:fix": "eslint src tests --fix",
+    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\" \"examples/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"tests/**/*.ts\" \"examples/**/*.ts\"",
     "typecheck": "tsc --noEmit",
     "example:basic": "npx tsx examples/basic.ts",
     "example:lasso": "npx tsx examples/lasso.ts",
@@ -44,9 +47,14 @@
     "clarabel-wasm-nodejs": "file:./wasm/pkg/nodejs"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.2",
     "@types/node": "^20.10.0",
+    "eslint": "^9.39.2",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.7.4",
     "tsup": "^8.0.1",
     "typescript": "^5.3.3",
+    "typescript-eslint": "^8.49.0",
     "vitest": "^1.2.0"
   },
   "engines": {
@@ -54,8 +62,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-username/cvxjs.git"
+    "url": "https://github.com/SteveDiamond/cvxjs.git"
   },
+  "bugs": {
+    "url": "https://github.com/SteveDiamond/cvxjs/issues"
+  },
+  "homepage": "https://github.com/SteveDiamond/cvxjs#readme",
   "keywords": [
     "convex",
     "optimization",
@@ -67,6 +79,6 @@
     "quadratic-programming",
     "socp"
   ],
-  "author": "",
+  "author": "Steven Diamond <steven@optimalintellect.com>",
   "license": "Apache-2.0"
 }

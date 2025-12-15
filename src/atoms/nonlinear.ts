@@ -1,5 +1,4 @@
 import { Expr, exprShape, shapeToString } from '../expr/index.js';
-import { isConstant } from '../expr/constant.js';
 import { ShapeError } from '../error.js';
 
 /**

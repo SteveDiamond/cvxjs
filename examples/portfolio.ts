@@ -17,29 +17,33 @@
  *   r_min = minimum required return
  */
 
-import {
-  variable,
-  constant,
-  sum,
-  mul,
-  ge,
-  eq,
-  Problem,
-} from '../src/index.js';
+import { variable, constant, sum, mul, ge, eq, Problem } from '../src/index.js';
 
 async function portfolioOptimization() {
   console.log('=== Portfolio Optimization ===\n');
 
   // 4 assets with expected returns and covariance matrix
-  const expectedReturns = [0.12, 0.10, 0.07, 0.03]; // 12%, 10%, 7%, 3%
+  const expectedReturns = [0.12, 0.1, 0.07, 0.03]; // 12%, 10%, 7%, 3%
 
   // Covariance matrix (symmetric positive definite)
   // Row-major, will be used as column-major Float64Array
   const covariance = [
-    0.04, 0.006, 0.002, 0.0, // Asset 1: 20% volatility
-    0.006, 0.025, 0.004, 0.001, // Asset 2: 15.8% volatility
-    0.002, 0.004, 0.01, 0.002, // Asset 3: 10% volatility
-    0.0, 0.001, 0.002, 0.0025, // Asset 4: 5% volatility (bonds)
+    0.04,
+    0.006,
+    0.002,
+    0.0, // Asset 1: 20% volatility
+    0.006,
+    0.025,
+    0.004,
+    0.001, // Asset 2: 15.8% volatility
+    0.002,
+    0.004,
+    0.01,
+    0.002, // Asset 3: 10% volatility
+    0.0,
+    0.001,
+    0.002,
+    0.0025, // Asset 4: 5% volatility (bonds)
   ];
 
   const n = 4;

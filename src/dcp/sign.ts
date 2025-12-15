@@ -1,4 +1,4 @@
-import { Expr, ArrayData, getScalarValue, isScalarData } from '../expr/index.js';
+import { Expr, ArrayData } from '../expr/index.js';
 
 /**
  * Sign of an expression.

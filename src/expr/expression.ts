@@ -1,4 +1,4 @@
-import { Shape, size, shapeEquals, scalar as scalarShape } from './shape.js';
+import { Shape, size, scalar as scalarShape } from './shape.js';
 
 /**
  * Unique identifier for expressions.

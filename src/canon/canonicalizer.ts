@@ -5,7 +5,6 @@ import {
   LinExpr,
   linExprVariable,
   linExprConstant,
-  linExprZero,
   linExprAdd,
   linExprSub,
   linExprNeg,
@@ -15,17 +14,10 @@ import {
   linExprSum,
   linExprVstack,
 } from './lin-expr.js';
-import { ConeConstraint, ConeDims, emptyConeDims } from './cone-constraint.js';
-import {
-  CscMatrix,
-  cscFromTriplets,
-  cscFromDense,
-  cscTranspose,
-  cscMulMat,
-  cscIdentity,
-} from '../sparse/index.js';
+import { ConeConstraint } from './cone-constraint.js';
+import { CscMatrix, cscFromTriplets, cscFromDense, cscTranspose } from '../sparse/index.js';
 import { DcpError } from '../error.js';
-import { curvature, Curvature, isAffine } from '../dcp/index.js';
+import { curvature, Curvature } from '../dcp/index.js';
 
 /**
  * Auxiliary variable info.
@@ -96,10 +88,7 @@ export class Canonicalizer {
 
       // === Affine atoms ===
       case 'add':
-        return linExprAdd(
-          this.canonicalize(expr.left),
-          this.canonicalize(expr.right)
-        );
+        return linExprAdd(this.canonicalize(expr.left), this.canonicalize(expr.right));
 
       case 'neg':
         return linExprNeg(this.canonicalize(expr.arg));
@@ -310,7 +299,7 @@ export class Canonicalizer {
         // ||x||^2 <= t  <=>  ||[2x; t-1]|| <= t+1 (rotated SOC)
 
         const x = this.canonicalize(expr.arg);
-        const { linExpr: t } = this.newNonnegAuxVar(1);
+        const { linExpr: _t } = this.newNonnegAuxVar(1);
 
         // Use rotated second-order cone: 2*x_i^2 <= 2*t
         // ||x||^2 <= t is equivalent to (t+1, t-1, 2x) in SOC
@@ -568,13 +557,17 @@ export class Canonicalizer {
       if (range.type === 'single') {
         // Single index: extract one element, dimension is removed
         if (range.index < 0 || range.index >= dimSize) {
-          throw new DcpError(`Index ${range.index} out of bounds for dimension ${d} with size ${dimSize}`);
+          throw new DcpError(
+            `Index ${range.index} out of bounds for dimension ${d} with size ${dimSize}`
+          );
         }
         dimRanges.push({ start: range.index, stop: range.index + 1, keep: false });
       } else if (range.type === 'range') {
         // Range: extract elements [start, stop)
         if (range.start < 0 || range.stop > dimSize || range.start > range.stop) {
-          throw new DcpError(`Invalid range [${range.start}, ${range.stop}) for dimension ${d} with size ${dimSize}`);
+          throw new DcpError(
+            `Invalid range [${range.start}, ${range.stop}) for dimension ${d} with size ${dimSize}`
+          );
         }
         const rangeSize = range.stop - range.start;
         if (rangeSize > 0) {
@@ -660,7 +653,7 @@ export function canonicalizeProblem(
     objectiveOffset = objectiveLinExpr.constant[0]!;
     objectiveLinExpr = {
       ...objectiveLinExpr,
-      constant: new Float64Array(1),  // Zero out constant
+      constant: new Float64Array(1), // Zero out constant
     };
   }
 

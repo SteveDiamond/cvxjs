@@ -6,8 +6,6 @@ import {
   cscScale,
   cscAdd,
   cscVstack,
-  cscHstack,
-  cscTranspose,
   cscFromTriplets,
   cscMulMat,
 } from '../sparse/index.js';

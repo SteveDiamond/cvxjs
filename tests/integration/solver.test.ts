@@ -171,10 +171,7 @@ describe('Solver Integration', () => {
       // Optimal: x = [5, 0, 0], value = 5
       const x = variable(3);
       const solution = await Problem.minimize(sum(x))
-        .subjectTo([
-          eq(index(x, 0), constant(5)),
-          ge(x, constant([0, 0, 0])),
-        ])
+        .subjectTo([eq(index(x, 0), constant(5)), ge(x, constant([0, 0, 0]))])
         .solve();
 
       expect(solution.status).toBe('optimal');
@@ -213,7 +210,16 @@ describe('Solver Integration', () => {
       const y = variable(3);
       const z = hstack(x, y);
       const solution = await Problem.minimize(add(sum(x), sum(y)))
-        .subjectTo([ge(z, constant([[1, 1], [1, 1], [1, 1]]))])
+        .subjectTo([
+          ge(
+            z,
+            constant([
+              [1, 1],
+              [1, 1],
+              [1, 1],
+            ])
+          ),
+        ])
         .solve();
 
       expect(solution.status).toBe('optimal');
@@ -231,10 +237,7 @@ describe('Solver Integration', () => {
       const col1 = index(z, 'all', 1); // Second column = y
 
       const solution = await Problem.minimize(sum(col1))
-        .subjectTo([
-          ge(x, constant([0, 0, 0])),
-          ge(y, constant([1, 2, 3])),
-        ])
+        .subjectTo([ge(x, constant([0, 0, 0])), ge(y, constant([1, 2, 3]))])
         .solve();
 
       expect(solution.status).toBe('optimal');
@@ -247,10 +250,7 @@ describe('Solver Integration', () => {
       const x = variable(3);
       const sliced = index(x, [0, 2]);
       const solution = await Problem.minimize(norm2(sliced))
-        .subjectTo([
-          eq(sum(x), constant(3)),
-          ge(x, constant([0, 0, 0])),
-        ])
+        .subjectTo([eq(sum(x), constant(3)), ge(x, constant([0, 0, 0]))])
         .solve();
 
       expect(solution.status).toBe('optimal');

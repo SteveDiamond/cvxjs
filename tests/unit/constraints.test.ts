@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
   variable,
-  constant,
   eq,
   le,
   ge,
@@ -10,7 +9,7 @@ import {
   constraintVariables,
   resetExprIds,
 } from '../../src/index.js';
-import { sum, norm2, sumSquares } from '../../src/atoms/index.js';
+import { sum, norm2 } from '../../src/atoms/index.js';
 
 describe('Constraints', () => {
   beforeEach(() => {
@@ -54,7 +53,7 @@ describe('Constraints', () => {
 
     it('is DCP when convex <= constant', () => {
       const x = variable(5);
-      const c = le(norm2(x), 1);  // ||x|| <= 1
+      const c = le(norm2(x), 1); // ||x|| <= 1
       expect(isDcpConstraint(c)).toBe(true);
     });
 
@@ -66,8 +65,8 @@ describe('Constraints', () => {
     });
 
     it('is not DCP when concave <= constant', () => {
-      const x = variable(5);
-      const y = variable(5);
+      const _x = variable(5);
+      const _y = variable(5);
       // minimum is concave, can't be on LHS of <=
       // Actually: minimum(x, y) <= 5 means -minimum(x,y) + 5 >= 0
       // -minimum is convex (negation of concave), so this IS DCP
@@ -84,7 +83,7 @@ describe('Constraints', () => {
 
     it('is DCP when constant >= convex', () => {
       const x = variable(5);
-      const c = ge(1, norm2(x));  // 1 >= ||x||
+      const c = ge(1, norm2(x)); // 1 >= ||x||
       expect(isDcpConstraint(c)).toBe(true);
     });
 

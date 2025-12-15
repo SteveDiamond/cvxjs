@@ -3,18 +3,13 @@ import {
   exprShape,
   Shape,
   size,
-  rows,
-  cols,
-  isScalar,
-  shapeEquals,
   broadcastShape,
   shapeToString,
   IndexRange,
-  scalar as scalarShape,
   matrix,
   vector,
 } from '../expr/index.js';
-import { constant, isConstant, getScalarConstant } from '../expr/constant.js';
+import { constant } from '../expr/constant.js';
 import { ShapeError } from '../error.js';
 
 /**
@@ -184,10 +179,7 @@ export function reshape(arg: Expr, shape: readonly [number] | readonly [number, 
  * const y = index(A, 0, [1, 4]);   // A[0, 1:4]
  * ```
  */
-export function index(
-  arg: Expr,
-  ...indices: (number | readonly [number, number] | 'all')[]
-): Expr {
+export function index(arg: Expr, ...indices: (number | readonly [number, number] | 'all')[]): Expr {
   const ranges: IndexRange[] = indices.map((idx) => {
     if (idx === 'all') {
       return { type: 'all' };
@@ -295,11 +287,19 @@ export function dot(left: Expr, right: Expr): Expr {
   const rShape = exprShape(right);
 
   if (lShape.dims.length !== 1 || rShape.dims.length !== 1) {
-    throw new ShapeError('dot requires vectors', 'vectors', `${shapeToString(lShape)}, ${shapeToString(rShape)}`);
+    throw new ShapeError(
+      'dot requires vectors',
+      'vectors',
+      `${shapeToString(lShape)}, ${shapeToString(rShape)}`
+    );
   }
 
   if (lShape.dims[0] !== rShape.dims[0]) {
-    throw new ShapeError('dot requires vectors of same length', `${lShape.dims[0]}`, `${rShape.dims[0]}`);
+    throw new ShapeError(
+      'dot requires vectors of same length',
+      `${lShape.dims[0]}`,
+      `${rShape.dims[0]}`
+    );
   }
 
   return sum(mul(left, right));

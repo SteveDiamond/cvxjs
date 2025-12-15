@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>cvxjs Browser Test</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    h1 { color: #333; }
+    .test {
+      background: white;
+      border-radius: 8px;
+      padding: 16px;
+      margin: 16px 0;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .test-name { font-weight: bold; margin-bottom: 8px; }
+    .pass { color: #22c55e; }
+    .fail { color: #ef4444; }
+    .result { font-family: monospace; white-space: pre-wrap; background: #f0f0f0; padding: 8px; border-radius: 4px; }
+    #summary { font-size: 1.2em; margin-top: 20px; padding: 16px; border-radius: 8px; }
+    #summary.all-pass { background: #dcfce7; color: #166534; }
+    #summary.has-fail { background: #fee2e2; color: #991b1b; }
+  </style>
+</head>
+<body>
+  <h1>cvxjs Browser E2E Tests</h1>
+  <div id="tests"></div>
+  <div id="summary"></div>
+
+  <script type="module">
+    // Import from the bundler build
+    import init, { test_wasm, version, solve } from '../../wasm/pkg/web/clarabel_wasm.js';
+
+    const testsDiv = document.getElementById('tests');
+    const summaryDiv = document.getElementById('summary');
+    let passed = 0;
+    let failed = 0;
+
+    function addResult(name, success, details) {
+      const div = document.createElement('div');
+      div.className = 'test';
+      div.innerHTML = `
+        <div class="test-name">${success ? '✅' : '❌'} ${name}</div>
+        <div class="result">${details}</div>
+      `;
+      testsDiv.appendChild(div);
+      if (success) passed++; else failed++;
+    }
+
+    async function runTests() {
+      try {
+        // Initialize WASM
+        await init();
+        addResult('WASM Initialization', true, 'WASM module loaded successfully');
+
+        // Test 1: test_wasm function
+        const testResult = test_wasm();
+        const test1Pass = testResult === 'Clarabel WASM is working!';
+        addResult('test_wasm()', test1Pass, testResult);
+
+        // Test 2: version function
+        const ver = version();
+        const test2Pass = ver.includes('clarabel-wasm');
+        addResult('version()', test2Pass, ver);
+
+        // Test 3: Simple LP - minimize x subject to x >= 1
+        // Standard form: min q'x s.t. Ax + s = b, s >= 0
+        // For x >= 1: -x + s = -1, s >= 0
+        const pColPtr = new Uint32Array([0, 0]);
+        const pRowIdx = new Uint32Array([]);
+        const pValues = new Float64Array([]);
+        const q = new Float64Array([1]); // minimize x
+        const aColPtr = new Uint32Array([0, 1]);
+        const aRowIdx = new Uint32Array([0]);
+        const aValues = new Float64Array([-1]);
+        const b = new Float64Array([-1]);
+        const coneSpec = JSON.stringify({ zero: 0, nonneg: 1, soc: [], exp: 0, power: [] });
+        const settings = JSON.stringify({ verbose: false, max_iter: 200, time_limit: 1e10 });
+
+        const result = solve(pColPtr, pRowIdx, pValues, q, aColPtr, aRowIdx, aValues, b, 1, 1, coneSpec, settings);
+        const test3Pass = result.status === 'optimal' && Math.abs(result.obj_val - 1) < 1e-6;
+        addResult('Simple LP (min x s.t. x >= 1)', test3Pass,
+          `Status: ${result.status}\nObjective: ${result.obj_val}\nx = [${result.x?.join(', ')}]\nIterations: ${result.iterations}`);
+
+        // Test 4: Equality constraint LP - minimize x subject to x = 2
+        const aColPtr2 = new Uint32Array([0, 1]);
+        const aRowIdx2 = new Uint32Array([0]);
+        const aValues2 = new Float64Array([1]);
+        const b2 = new Float64Array([2]);
+        const coneSpec2 = JSON.stringify({ zero: 1, nonneg: 0, soc: [], exp: 0, power: [] });
+
+        const result2 = solve(pColPtr, pRowIdx, pValues, q, aColPtr2, aRowIdx2, aValues2, b2, 1, 1, coneSpec2, settings);
+        const test4Pass = result2.status === 'optimal' && Math.abs(result2.obj_val - 2) < 1e-6;
+        addResult('Equality LP (min x s.t. x = 2)', test4Pass,
+          `Status: ${result2.status}\nObjective: ${result2.obj_val}\nx = [${result2.x?.join(', ')}]`);
+
+        // Test 5: SOC constraint - minimize t subject to ||x|| <= t, sum(x) = 3
+        // This tests second-order cone programming
+        const n = 4; // t + 3 components of x
+        const m = 5; // 1 equality + 4 SOC
+        const q3 = new Float64Array([1, 0, 0, 0]); // minimize t
+
+        // A matrix: first row is sum(x) = 3, next 4 rows are SOC [t; x]
+        // Row 0: 0*t + 1*x1 + 1*x2 + 1*x3 = 3 (equality)
+        // Rows 1-4: [-t; -x] for SOC (negated for slack form)
+        const aColPtr3 = new Uint32Array([0, 2, 4, 6, 7]); // 4 columns
+        const aRowIdx3 = new Uint32Array([1, 0, 2, 0, 3, 0, 4]); // row indices
+        const aValues3 = new Float64Array([-1, 1, -1, 1, -1, 1, -1]); // values
+        const b3 = new Float64Array([3, 0, 0, 0, 0]);
+        const coneSpec3 = JSON.stringify({ zero: 1, nonneg: 0, soc: [4], exp: 0, power: [] });
+
+        const result3 = solve(
+          new Uint32Array([0, 0, 0, 0, 0]), new Uint32Array([]), new Float64Array([]),
+          q3, aColPtr3, aRowIdx3, aValues3, b3, n, m, coneSpec3, settings
+        );
+        const expectedNorm = Math.sqrt(3);
+        const test5Pass = result3.status === 'optimal' && Math.abs(result3.obj_val - expectedNorm) < 0.01;
+        addResult('SOCP (min ||x|| s.t. sum(x) = 3)', test5Pass,
+          `Status: ${result3.status}\n||x||_2: ${result3.obj_val?.toFixed(4)} (expected: ${expectedNorm.toFixed(4)})\nx = [${result3.x?.map(v => v.toFixed(4)).join(', ')}]`);
+
+      } catch (e) {
+        addResult('Test execution', false, `Error: ${e.message}\n${e.stack}`);
+      }
+
+      // Summary
+      summaryDiv.textContent = `Tests: ${passed} passed, ${failed} failed`;
+      summaryDiv.className = failed === 0 ? 'all-pass' : 'has-fail';
+    }
+
+    runTests();
+  </script>
+</body>
+</html>

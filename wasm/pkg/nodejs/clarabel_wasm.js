@@ -204,14 +204,14 @@ let WASM_VECTOR_LEN = 0;
  *               s in K
  *
  * # Arguments
- * * `p_data` - P matrix data (upper triangular CSC: col_ptr, row_idx, values)
+ * * `p_col_ptr`, `p_row_idx`, `p_values` - P matrix (upper triangular CSC)
  * * `q` - Linear cost vector
- * * `a_data` - A matrix data (CSC: col_ptr, row_idx, values)
+ * * `a_col_ptr`, `a_row_idx`, `a_values` - A matrix (CSC)
  * * `b` - Constraint vector
  * * `n` - Number of variables
  * * `m` - Number of constraints
- * * `cone_spec` - Cone specification as JSON string
- * * `settings` - Solver settings as JSON string
+ * * `cone_spec_json` - Cone specification as JSON string
+ * * `settings_json` - Solver settings as JSON string
  * @param {Uint32Array} p_col_ptr
  * @param {Uint32Array} p_row_idx
  * @param {Float64Array} p_values
@@ -309,10 +309,6 @@ exports.__wbg_call_abb4ff46ce38be40 = function() { return handleError(function (
     const ret = arg0.call(arg1);
     return ret;
 }, arguments) };
-
-exports.__wbg_log_1d990106d99dacb7 = function(arg0) {
-    console.log(arg0);
-};
 
 exports.__wbg_new_1ba21ce319a06297 = function() {
     const ret = new Object();

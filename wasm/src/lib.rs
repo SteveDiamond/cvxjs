@@ -3,7 +3,6 @@ use clarabel::algebra::*;
 use clarabel::solver::*;
 use serde::{Deserialize, Serialize};
 use std::panic;
-use web_sys::console;
 
 /// Result of solving an optimization problem
 #[derive(Serialize, Deserialize)]
@@ -101,14 +100,14 @@ fn status_to_string(status: SolverStatus) -> String {
 ///               s in K
 ///
 /// # Arguments
-/// * `p_data` - P matrix data (upper triangular CSC: col_ptr, row_idx, values)
+/// * `p_col_ptr`, `p_row_idx`, `p_values` - P matrix (upper triangular CSC)
 /// * `q` - Linear cost vector
-/// * `a_data` - A matrix data (CSC: col_ptr, row_idx, values)
+/// * `a_col_ptr`, `a_row_idx`, `a_values` - A matrix (CSC)
 /// * `b` - Constraint vector
 /// * `n` - Number of variables
 /// * `m` - Number of constraints
-/// * `cone_spec` - Cone specification as JSON string
-/// * `settings` - Solver settings as JSON string
+/// * `cone_spec_json` - Cone specification as JSON string
+/// * `settings_json` - Solver settings as JSON string
 #[wasm_bindgen]
 pub fn solve(
     p_col_ptr: &[u32],
@@ -127,23 +126,11 @@ pub fn solve(
     let n = n as usize;
     let m = m as usize;
 
-    // Debug logging
-    console::log_1(&format!("solve() called: n={}, m={}", n, m).into());
-    console::log_1(&format!("p_col_ptr.len={}, p_row_idx.len={}, p_values.len={}",
-        p_col_ptr.len(), p_row_idx.len(), p_values.len()).into());
-    console::log_1(&format!("a_col_ptr.len={}, a_row_idx.len={}, a_values.len={}",
-        a_col_ptr.len(), a_row_idx.len(), a_values.len()).into());
-    console::log_1(&format!("q.len={}, b.len={}", q.len(), b.len()).into());
-    console::log_1(&format!("cone_spec_json: {}", cone_spec_json).into());
-
     // Convert u32 arrays to usize for Clarabel
     let p_col_ptr: Vec<usize> = p_col_ptr.iter().map(|&x| x as usize).collect();
     let p_row_idx: Vec<usize> = p_row_idx.iter().map(|&x| x as usize).collect();
     let a_col_ptr: Vec<usize> = a_col_ptr.iter().map(|&x| x as usize).collect();
     let a_row_idx: Vec<usize> = a_row_idx.iter().map(|&x| x as usize).collect();
-
-    console::log_1(&format!("Converted arrays - p_col_ptr: {:?}", p_col_ptr).into());
-    console::log_1(&format!("Converted arrays - a_col_ptr: {:?}", a_col_ptr).into());
 
     // Parse cone specification
     let cone_spec: ConeSpec = match serde_json::from_str(cone_spec_json) {
@@ -163,8 +150,6 @@ pub fn solve(
     // Parse settings
     let settings: SolverSettings = serde_json::from_str(settings_json).unwrap_or_default();
 
-    console::log_1(&"Building P matrix...".into());
-
     // Build P matrix (upper triangular)
     let p = CscMatrix::new(
         n,
@@ -173,8 +158,6 @@ pub fn solve(
         p_row_idx.clone(),
         p_values.to_vec(),
     );
-
-    console::log_1(&"Building A matrix...".into());
 
     // Build A matrix
     let a = CscMatrix::new(
@@ -185,16 +168,8 @@ pub fn solve(
         a_values.to_vec(),
     );
 
-    console::log_1(&"Building cones...".into());
-
     // Build cones
     let cones = build_cones(&cone_spec);
-
-    console::log_1(&format!("Built {} cones", cones.len()).into());
-
-    // Configure solver settings using builder
-    console::log_1(&format!("Settings: verbose={}, max_iter={}, time_limit={}",
-        settings.verbose, settings.max_iter, settings.time_limit).into());
 
     // Use a large but finite time_limit instead of infinity (WASM compatibility)
     let time_limit = if settings.time_limit.is_infinite() {
@@ -212,13 +187,10 @@ pub fn solve(
         .build()
         .unwrap();
 
-    console::log_1(&"Creating solver...".into());
-
     // Use panic::catch_unwind to handle panics gracefully
     let solve_result = panic::catch_unwind(panic::AssertUnwindSafe(|| {
         // Create and solve
         let mut solver = DefaultSolver::new(&p, q, &a, b, &cones, solver_settings);
-        console::log_1(&"Solver created, solving...".into());
         solver.solve();
 
         // Extract solution

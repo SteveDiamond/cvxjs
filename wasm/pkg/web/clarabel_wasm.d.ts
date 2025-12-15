@@ -10,14 +10,14 @@
  *               s in K
  *
  * # Arguments
- * * `p_data` - P matrix data (upper triangular CSC: col_ptr, row_idx, values)
+ * * `p_col_ptr`, `p_row_idx`, `p_values` - P matrix (upper triangular CSC)
  * * `q` - Linear cost vector
- * * `a_data` - A matrix data (CSC: col_ptr, row_idx, values)
+ * * `a_col_ptr`, `a_row_idx`, `a_values` - A matrix (CSC)
  * * `b` - Constraint vector
  * * `n` - Number of variables
  * * `m` - Number of constraints
- * * `cone_spec` - Cone specification as JSON string
- * * `settings` - Solver settings as JSON string
+ * * `cone_spec_json` - Cone specification as JSON string
+ * * `settings_json` - Solver settings as JSON string
  */
 export function solve(p_col_ptr: Uint32Array, p_row_idx: Uint32Array, p_values: Float64Array, q: Float64Array, a_col_ptr: Uint32Array, a_row_idx: Uint32Array, a_values: Float64Array, b: Float64Array, n: number, m: number, cone_spec_json: string, settings_json: string): any;
 
@@ -40,6 +40,8 @@ export interface InitOutput {
   readonly version: () => [number, number];
   readonly __wbindgen_malloc: (a: number, b: number) => number;
   readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
+  readonly __wbindgen_exn_store: (a: number) => void;
+  readonly __externref_table_alloc: () => number;
   readonly __wbindgen_externrefs: WebAssembly.Table;
   readonly __wbindgen_free: (a: number, b: number, c: number) => void;
   readonly __wbindgen_start: () => void;

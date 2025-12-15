@@ -251,6 +251,32 @@ export function linExprVstack(exprs: LinExpr[]): LinExpr {
 }
 
 /**
+ * Element-wise scale a linear expression by a diagonal vector.
+ * result[i] = diag[i] * a[i]
+ */
+export function linExprDiagScale(a: LinExpr, diag: Float64Array): LinExpr {
+  if (diag.length !== a.rows) {
+    throw new Error(`Diagonal scale dimension mismatch: ${diag.length} vs ${a.rows}`);
+  }
+
+  // Create diagonal matrix from diag vector
+  const diagRows: number[] = [];
+  const diagCols: number[] = [];
+  const diagVals: number[] = [];
+  for (let i = 0; i < diag.length; i++) {
+    if (diag[i] !== 0) {
+      diagRows.push(i);
+      diagCols.push(i);
+      diagVals.push(diag[i]!);
+    }
+  }
+  const D = cscFromTriplets(a.rows, a.rows, diagRows, diagCols, diagVals);
+
+  // D * a (left multiply by diagonal matrix)
+  return linExprLeftMul(D, a);
+}
+
+/**
  * Check if linear expression is constant (no variables).
  */
 export function linExprIsConstant(a: LinExpr): boolean {

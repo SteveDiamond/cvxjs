@@ -10,6 +10,7 @@ import {
   linExprSub,
   linExprNeg,
   linExprScale,
+  linExprDiagScale,
   linExprLeftMul,
   linExprSum,
   linExprVstack,
@@ -109,12 +110,30 @@ export class Canonicalizer {
         const rightCurv = curvature(expr.right);
 
         if (leftCurv === Curvature.Constant) {
-          const scalar = this.getScalarConstant(expr.left);
-          return linExprScale(this.canonicalize(expr.right), scalar);
+          const constShape = exprShape(expr.left);
+          if (isScalar(constShape)) {
+            const scalar = this.getScalarConstant(expr.left);
+            return linExprScale(this.canonicalize(expr.right), scalar);
+          } else {
+            // Element-wise multiplication with vector/matrix constant
+            const diag = this.arrayDataToFloat64(
+              expr.left.kind === 'constant' ? expr.left.value : { type: 'scalar', value: 0 }
+            );
+            return linExprDiagScale(this.canonicalize(expr.right), diag);
+          }
         }
         if (rightCurv === Curvature.Constant) {
-          const scalar = this.getScalarConstant(expr.right);
-          return linExprScale(this.canonicalize(expr.left), scalar);
+          const constShape = exprShape(expr.right);
+          if (isScalar(constShape)) {
+            const scalar = this.getScalarConstant(expr.right);
+            return linExprScale(this.canonicalize(expr.left), scalar);
+          } else {
+            // Element-wise multiplication with vector/matrix constant
+            const diag = this.arrayDataToFloat64(
+              expr.right.kind === 'constant' ? expr.right.value : { type: 'scalar', value: 0 }
+            );
+            return linExprDiagScale(this.canonicalize(expr.left), diag);
+          }
         }
         throw new DcpError('mul requires at least one constant operand');
       }

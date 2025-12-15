@@ -216,29 +216,36 @@ export function stuffProblem(
     coneDims.zero += c.a.rows;
   }
 
-  // Nonnegative cone (inequality constraints): Ax + b >= 0
-  // Clarabel uses Ax + s = b, s >= 0, so we negate: -Ax - b + s = 0, s >= 0
-  // This means: A_clarabel = -A, b_clarabel = b (no, wait...)
-  // Standard form: Ax + s = b, s in K
-  // We have: a.expr >= 0, meaning a_coeffs * x + a_const >= 0
-  // Rewrite as: a_coeffs * x + s = -a_const, s >= 0
-  // So: A = a_coeffs, b = -a_const, and s >= 0
+  // Nonnegative cone (inequality constraints): expr >= 0
+  // Clarabel standard form: Ax + s = b, s >= 0, means s = b - Ax >= 0, i.e., Ax <= b
+  // We have: a_coeffs * x + a_const >= 0
+  // Rewrite: -a_coeffs * x <= a_const
+  // So: A_clarabel = -a_coeffs, b_clarabel = a_const
+  // stuffLinExpr with negate=true gives: A = -a_coeffs, b = -(-a_const) = a_const ✗
+  // Actually stuffLinExpr computes b = -constant, so:
+  //   negate=true: A = -a_coeffs, b = -(-1) * a_const = a_const ✓
   for (const c of nonnegConstraints) {
     if (c.kind !== 'nonneg') continue;
-    const { A, b } = stuffLinExpr(c.a, varMap, false);
+    const { A, b } = stuffLinExpr(c.a, varMap, true);  // NEGATE for correct sign
     As.push(A);
     bs.push(b);
     coneDims.nonneg += c.a.rows;
   }
 
   // SOC constraints: ||x|| <= t
-  // Standard form: (t, x) in SOC, meaning t >= ||x||
-  // Clarabel SOC: ||z[1:]|| <= z[0]
-  // So we stack t on top of x
+  // Clarabel form: Ax + s = b, s in SOC means s[0] >= ||s[1:]||
+  // We want slack s = [t; x] so that t >= ||x||
+  // From Ax + s = b: s = b - Ax
+  // For s = [t; x], we need b - Ax = [t; x]
+  // If t and x are variables with LinExpr A_t*vars + c_t and A_x*vars + c_x:
+  //   s = b - A_clarabel*vars
+  //   For s = [t; x] = [A_t*vars + c_t; A_x*vars + c_x]
+  //   We need A_clarabel = -[A_t; A_x], b = [c_t; c_x]
+  // stuffLinExpr with negate=true gives: A = -coeffs, b = constant
   for (const c of socConstraints) {
     if (c.kind !== 'soc') continue;
-    const { A: At, b: bt } = stuffLinExpr(c.t, varMap, false);
-    const { A: Ax, b: bx } = stuffLinExpr(c.x, varMap, false);
+    const { A: At, b: bt } = stuffLinExpr(c.t, varMap, true);  // NEGATE for correct slack
+    const { A: Ax, b: bx } = stuffLinExpr(c.x, varMap, true);  // NEGATE for correct slack
 
     // Stack [t; x]
     As.push(cscVstack(At, Ax));

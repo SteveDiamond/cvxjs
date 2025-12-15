@@ -1,8 +1,11 @@
-import { Expr, ExprId, exprVariables, exprShape } from './expr/index.js';
+import { Expr, ExprId, exprVariables, exprShape, isVariable, getVariableId } from './expr/index.js';
+import { size } from './expr/shape.js';
 import { Constraint, isDcpConstraint, validateDcpConstraint, constraintVariables } from './constraints/index.js';
 import { curvature, Curvature, isConvex, isConcave } from './dcp/index.js';
-import { DcpError } from './error.js';
+import { DcpError, SolverError, InfeasibleError, UnboundedError } from './error.js';
 import { isScalar } from './expr/shape.js';
+import { canonicalizeProblem, buildVariableMap, stuffProblem } from './canon/index.js';
+import { solveConic } from './solver/index.js';
 
 /**
  * Objective sense for optimization.
@@ -225,6 +228,9 @@ export class Problem {
    *
    * @returns Solution containing status, optimal value, and variable values
    * @throws DcpError if problem is not DCP compliant
+   * @throws SolverError if solver encounters an error
+   * @throws InfeasibleError if problem is infeasible
+   * @throws UnboundedError if problem is unbounded
    *
    * @example
    * ```ts
@@ -238,8 +244,161 @@ export class Problem {
     // Validate DCP
     this.validateDcp();
 
-    // TODO: Implement canonicalization and solver call
-    // For now, return a placeholder
-    throw new Error('Solver not yet implemented. Coming in Phase 4-5.');
+    // Collect all variables and their sizes
+    const varIds = this.variables;
+    const varSizes = new Map<ExprId, number>();
+
+    // Extract variable sizes from objective and constraints
+    this.collectVariableSizes(this._objective, varSizes);
+    for (const c of this._constraints) {
+      this.collectVariableSizesFromConstraint(c, varSizes);
+    }
+
+    // Canonicalize the problem
+    const { objectiveLinExpr, coneConstraints, auxVars, objectiveOffset } =
+      canonicalizeProblem(this._objective, this._constraints, this._sense);
+
+    // Build variable mapping
+    const varMap = buildVariableMap(varIds, varSizes, auxVars);
+
+    // Stuff the problem into standard form
+    const stuffed = stuffProblem(
+      objectiveLinExpr,
+      coneConstraints,
+      varMap,
+      objectiveOffset
+    );
+
+    // Call the solver
+    const result = await solveConic(
+      stuffed.P,
+      stuffed.q,
+      stuffed.A,
+      stuffed.b,
+      stuffed.coneDims,
+      this._settings
+    );
+
+    // Handle error statuses
+    if (result.status === 'infeasible') {
+      throw new InfeasibleError('Problem is infeasible');
+    }
+    if (result.status === 'unbounded') {
+      throw new UnboundedError('Problem is unbounded');
+    }
+    if (result.status === 'numerical_error') {
+      throw new SolverError('Solver encountered numerical difficulties');
+    }
+
+    // Extract solution values for original variables
+    let primal: Map<ExprId, Float64Array> | undefined;
+    let value: number | undefined;
+
+    if (result.status === 'optimal' && result.x) {
+      primal = new Map();
+
+      for (const varId of varIds) {
+        const mapping = varMap.idToCol.get(varId);
+        if (mapping) {
+          const varValues = new Float64Array(mapping.size);
+          for (let i = 0; i < mapping.size; i++) {
+            varValues[i] = result.x[mapping.start + i] ?? 0;
+          }
+          primal.set(varId, varValues);
+        }
+      }
+
+      // Compute objective value (add back offset, handle maximize)
+      value = result.objVal ?? 0;
+      value += objectiveOffset;
+
+      // For maximization, negate back
+      if (this._sense === 'maximize') {
+        value = -value;
+      }
+    }
+
+    return {
+      status: result.status,
+      value,
+      primal,
+      solveTime: result.solveTime,
+      iterations: result.iterations,
+    };
+  }
+
+  /**
+   * Collect variable sizes from an expression.
+   */
+  private collectVariableSizes(expr: Expr, sizes: Map<ExprId, number>): void {
+    if (expr.kind === 'variable') {
+      sizes.set(expr.id, size(expr.shape));
+      return;
+    }
+
+    // Recursively process sub-expressions
+    switch (expr.kind) {
+      case 'constant':
+        break;
+      case 'add':
+      case 'mul':
+      case 'div':
+      case 'matmul':
+        this.collectVariableSizes(expr.left, sizes);
+        this.collectVariableSizes(expr.right, sizes);
+        break;
+      case 'neg':
+      case 'sum':
+      case 'reshape':
+      case 'transpose':
+      case 'trace':
+      case 'diag':
+      case 'norm1':
+      case 'norm2':
+      case 'normInf':
+      case 'abs':
+      case 'pos':
+      case 'sumSquares':
+        this.collectVariableSizes(expr.arg, sizes);
+        break;
+      case 'index':
+        this.collectVariableSizes(expr.arg, sizes);
+        break;
+      case 'vstack':
+      case 'hstack':
+      case 'maximum':
+      case 'minimum':
+        for (const arg of expr.args) {
+          this.collectVariableSizes(arg, sizes);
+        }
+        break;
+      case 'quadForm':
+        this.collectVariableSizes(expr.x, sizes);
+        this.collectVariableSizes(expr.P, sizes);
+        break;
+      case 'quadOverLin':
+        this.collectVariableSizes(expr.x, sizes);
+        this.collectVariableSizes(expr.y, sizes);
+        break;
+    }
+  }
+
+  /**
+   * Collect variable sizes from a constraint.
+   */
+  private collectVariableSizesFromConstraint(
+    constraint: Constraint,
+    sizes: Map<ExprId, number>
+  ): void {
+    switch (constraint.kind) {
+      case 'zero':
+      case 'nonneg':
+        this.collectVariableSizes(constraint.expr, sizes);
+        break;
+      case 'soc':
+        this.collectVariableSizes(constraint.t, sizes);
+        this.collectVariableSizes(constraint.x, sizes);
+        break;
+    }
   }
 }

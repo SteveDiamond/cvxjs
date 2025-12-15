@@ -32,7 +32,11 @@
     "test:coverage": "vitest --coverage",
     "lint": "eslint src tests",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "npm run build && npm run test:run"
+    "prepublishOnly": "npm run build:wasm && npm run build && npm run test:run"
+  },
+  "dependencies": {
+    "clarabel-wasm": "file:./wasm/pkg/bundler",
+    "clarabel-wasm-nodejs": "file:./wasm/pkg/nodejs"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",

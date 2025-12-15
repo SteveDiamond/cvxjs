@@ -159,6 +159,16 @@ export {
 export type { ObjectiveSense, SolveStatus, Solution, SolverSettings } from './problem.js';
 export { Problem } from './problem.js';
 
+// === Solver ===
+export {
+  loadWasm,
+  testWasm,
+  clarabelVersion,
+  solveConic,
+} from './solver/index.js';
+
+export type { ConicSolveResult } from './solver/index.js';
+
 // === Errors ===
 export {
   CvxError,

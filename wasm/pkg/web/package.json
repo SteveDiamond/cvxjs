@@ -1,0 +1,20 @@
+{
+  "name": "clarabel-wasm",
+  "type": "module",
+  "collaborators": [
+    "cvxjs contributors"
+  ],
+  "description": "WebAssembly bindings for Clarabel convex optimization solver",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "files": [
+    "clarabel_wasm_bg.wasm",
+    "clarabel_wasm.js",
+    "clarabel_wasm.d.ts"
+  ],
+  "main": "clarabel_wasm.js",
+  "types": "clarabel_wasm.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

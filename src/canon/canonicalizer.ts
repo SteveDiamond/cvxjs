@@ -1,4 +1,4 @@
-import { Expr, ExprId, exprShape, newExprId, ArrayData } from '../expr/index.js';
+import { Expr, ExprId, exprShape, newExprId, ArrayData, IndexRange } from '../expr/index.js';
 import { size, isScalar } from '../expr/shape.js';
 import { Constraint } from '../constraints/index.js';
 import {
@@ -178,9 +178,11 @@ export class Canonicalizer {
       }
 
       case 'index': {
-        // Indexing extracts rows from the coefficient matrices
-        // This is complex - for now, throw
-        throw new DcpError('index canonicalization not yet supported');
+        // Indexing extracts elements from the coefficient matrices using a selection matrix
+        const argLin = this.canonicalize(expr.arg);
+        const argShape = exprShape(expr.arg);
+        const selectionMatrix = this.buildSelectionMatrix(argShape, expr.ranges);
+        return linExprLeftMul(selectionMatrix, argLin);
       }
 
       case 'vstack': {
@@ -189,7 +191,11 @@ export class Canonicalizer {
       }
 
       case 'hstack': {
-        throw new DcpError('hstack canonicalization not yet supported');
+        // In column-major flattened form, hstack is equivalent to vstack
+        // For hstack([A, B]) where A is m x n1 and B is m x n2:
+        // Result is m x (n1+n2), and flattened = [A_flat, B_flat]
+        const canonArgs = expr.args.map((arg) => this.canonicalize(arg));
+        return linExprVstack(canonArgs);
       }
 
       case 'transpose': {
@@ -518,6 +524,110 @@ export class Canonicalizer {
     const broadcast = cscFromTriplets(n, 1, broadcastRows, broadcastCols, broadcastVals);
 
     return linExprLeftMul(broadcast, scalar);
+  }
+
+  /**
+   * Build a selection matrix for indexing operations.
+   *
+   * The selection matrix S extracts elements from a flattened (column-major)
+   * array such that: result = S @ flatten(input)
+   *
+   * @param inputShape - Shape of the input expression
+   * @param ranges - Index ranges for each dimension
+   * @returns Sparse selection matrix
+   */
+  private buildSelectionMatrix(
+    inputShape: { dims: readonly number[] },
+    ranges: readonly IndexRange[]
+  ): CscMatrix {
+    // Normalize input shape to 2D: treat 1D as [n, 1], scalar as [1, 1]
+    const dims = inputShape.dims;
+    const m = dims[0] ?? 1; // rows
+    const n = dims[1] ?? 1; // cols
+    const inputSize = m * n;
+
+    // Normalize ranges: pad with 'all' if fewer ranges than dimensions
+    const normalizedRanges: IndexRange[] = [];
+    for (let d = 0; d < 2; d++) {
+      if (d < ranges.length) {
+        normalizedRanges.push(ranges[d]!);
+      } else {
+        normalizedRanges.push({ type: 'all' });
+      }
+    }
+
+    // Compute dimension ranges and track which dimensions are kept
+    type DimRange = { start: number; stop: number; keep: boolean };
+    const dimRanges: DimRange[] = [];
+    const outputDims: number[] = [];
+
+    for (let d = 0; d < 2; d++) {
+      const range = normalizedRanges[d]!;
+      const dimSize = d === 0 ? m : n;
+
+      if (range.type === 'single') {
+        // Single index: extract one element, dimension is removed
+        if (range.index < 0 || range.index >= dimSize) {
+          throw new DcpError(`Index ${range.index} out of bounds for dimension ${d} with size ${dimSize}`);
+        }
+        dimRanges.push({ start: range.index, stop: range.index + 1, keep: false });
+      } else if (range.type === 'range') {
+        // Range: extract elements [start, stop)
+        if (range.start < 0 || range.stop > dimSize || range.start > range.stop) {
+          throw new DcpError(`Invalid range [${range.start}, ${range.stop}) for dimension ${d} with size ${dimSize}`);
+        }
+        const rangeSize = range.stop - range.start;
+        if (rangeSize > 0) {
+          dimRanges.push({ start: range.start, stop: range.stop, keep: true });
+          outputDims.push(rangeSize);
+        } else {
+          // Empty range
+          dimRanges.push({ start: range.start, stop: range.stop, keep: true });
+          outputDims.push(0);
+        }
+      } else {
+        // 'all': keep entire dimension
+        dimRanges.push({ start: 0, stop: dimSize, keep: true });
+        outputDims.push(dimSize);
+      }
+    }
+
+    // Compute output size
+    const outputRows = outputDims[0] ?? 1;
+    const outputCols = outputDims[1] ?? 1;
+    const outputSize = outputRows * outputCols;
+
+    // Handle empty output case
+    if (outputSize === 0) {
+      return cscFromTriplets(0, inputSize, [], [], []);
+    }
+
+    // Build selection matrix triplets
+    // For each output element (in column-major order), find the corresponding input element
+    const selRows: number[] = [];
+    const selCols: number[] = [];
+    const selVals: number[] = [];
+
+    const rowRange = dimRanges[0]!;
+    const colRange = dimRanges[1]!;
+
+    let outIdx = 0;
+    for (let outC = 0; outC < outputCols; outC++) {
+      for (let outR = 0; outR < outputRows; outR++) {
+        // Map output position to source position
+        const srcR = rowRange.start + outR;
+        const srcC = colRange.start + outC;
+        // Source flat index (column-major)
+        const srcIdx = srcC * m + srcR;
+
+        selRows.push(outIdx);
+        selCols.push(srcIdx);
+        selVals.push(1);
+        outIdx++;
+      }
+    }
+
+    return cscFromTriplets(outputSize, inputSize, selRows, selCols, selVals);
   }
 }
 

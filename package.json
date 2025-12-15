@@ -1,0 +1,63 @@
+{
+  "name": "cvxjs",
+  "version": "0.1.0",
+  "description": "Disciplined Convex Programming in TypeScript",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "wasm/pkg"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "build:wasm": "cd wasm && ./build.sh",
+    "dev": "tsup --watch",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:coverage": "vitest --coverage",
+    "lint": "eslint src tests",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build && npm run test:run"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/cvxjs.git"
+  },
+  "keywords": [
+    "convex",
+    "optimization",
+    "dcp",
+    "cvxpy",
+    "clarabel",
+    "mathematical-programming",
+    "linear-programming",
+    "quadratic-programming",
+    "socp"
+  ],
+  "author": "",
+  "license": "Apache-2.0"
+}

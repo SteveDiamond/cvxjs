@@ -32,6 +32,10 @@
     "test:coverage": "vitest --coverage",
     "lint": "eslint src tests",
     "typecheck": "tsc --noEmit",
+    "example:basic": "npx tsx examples/basic.ts",
+    "example:lasso": "npx tsx examples/lasso.ts",
+    "example:least-squares": "npx tsx examples/least-squares.ts",
+    "example:portfolio": "npx tsx examples/portfolio.ts",
     "prepublishOnly": "npm run build:wasm && npm run build && npm run test:run"
   },
   "dependencies": {

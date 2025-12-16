@@ -4,7 +4,7 @@
  * Demonstrates the core cvxjs API with simple optimization problems.
  */
 
-import { variable, constant, sum, norm2, norm1, ge, le, eq, Problem } from '../src/index.js';
+import { variable, isVariable, constant, sum, norm2, norm1, ge, le, eq, Problem } from '../src/index.js';
 
 async function basicExamples() {
   console.log('=== cvxjs Basic Examples ===\n');
@@ -21,8 +21,8 @@ async function basicExamples() {
 
     console.log('Status:', solution.status);
     console.log('Optimal value:', solution.value);
-    if (solution.primal) {
-      const xVal = solution.primal.values().next().value as Float64Array;
+    if (solution.primal && isVariable(x)) {
+      const xVal = solution.primal.get(x.id)!;
       console.log(
         'x =',
         Array.from(xVal).map((v) => v.toFixed(2))
@@ -46,8 +46,8 @@ async function basicExamples() {
 
     console.log('Status:', solution.status);
     console.log('Optimal value:', solution.value);
-    if (solution.primal) {
-      const xVal = solution.primal.values().next().value as Float64Array;
+    if (solution.primal && isVariable(x)) {
+      const xVal = solution.primal.get(x.id)!;
       console.log(
         'x =',
         Array.from(xVal).map((v) => v.toFixed(2))
@@ -69,8 +69,8 @@ async function basicExamples() {
     console.log('Status:', solution.status);
     console.log('Optimal ||x||_2:', solution.value?.toFixed(4));
     console.log('Expected: sqrt(3) =', Math.sqrt(3).toFixed(4));
-    if (solution.primal) {
-      const xVal = solution.primal.values().next().value as Float64Array;
+    if (solution.primal && isVariable(x)) {
+      const xVal = solution.primal.get(x.id)!;
       console.log(
         'x =',
         Array.from(xVal).map((v) => v.toFixed(4))
@@ -93,8 +93,8 @@ async function basicExamples() {
 
     console.log('Status:', solution.status);
     console.log('Optimal ||x||_1:', solution.value?.toFixed(4));
-    if (solution.primal) {
-      const xVal = solution.primal.values().next().value as Float64Array;
+    if (solution.primal && isVariable(x)) {
+      const xVal = solution.primal.get(x.id)!;
       console.log(
         'x =',
         Array.from(xVal).map((v) => v.toFixed(4))

@@ -7,10 +7,10 @@
 
 import {
   variable,
+  isVariable,
   constant,
   sum,
   mul,
-  add,
   ge,
   le,
   eq,
@@ -48,8 +48,8 @@ async function entropyExamples() {
     console.log('Maximum entropy:', solution.value?.toFixed(4));
     console.log('Expected (log(4)):', Math.log(4).toFixed(4));
 
-    if (solution.primal) {
-      const probs = solution.primal.values().next().value as Float64Array;
+    if (solution.primal && isVariable(p)) {
+      const probs = solution.primal.get(p.id)!;
       console.log('\nOptimal distribution (should be uniform):');
       for (let i = 0; i < n; i++) {
         console.log(`  p[${i}] = ${probs[i].toFixed(4)}`);
@@ -83,8 +83,8 @@ async function entropyExamples() {
     console.log('Status:', solution.status);
     console.log('Objective:', solution.value?.toFixed(4));
 
-    if (solution.primal) {
-      const vals = solution.primal.values().next().value as Float64Array;
+    if (solution.primal && isVariable(x)) {
+      const vals = solution.primal.get(x.id)!;
       console.log('\nAnalytic center (should be at upper bound):');
       for (let i = 0; i < n; i++) {
         console.log(`  x[${i}] = ${vals[i].toFixed(4)}`);
@@ -114,8 +114,8 @@ async function entropyExamples() {
     console.log('Optimal value:', solution.value?.toFixed(4));
     console.log('Expected: 1 + 2 + 3 = 6');
 
-    if (solution.primal) {
-      const vals = solution.primal.values().next().value as Float64Array;
+    if (solution.primal && isVariable(x)) {
+      const vals = solution.primal.get(x.id)!;
       console.log('\nOptimal x (should be [1, 2, 3]):');
       for (let i = 0; i < n; i++) {
         console.log(`  x[${i}] = ${vals[i].toFixed(4)}`);
@@ -151,8 +151,8 @@ async function entropyExamples() {
     console.log('Status:', solution.status);
     console.log('Entropy:', solution.value?.toFixed(4));
 
-    if (solution.primal) {
-      const probs = solution.primal.values().next().value as Float64Array;
+    if (solution.primal && isVariable(q)) {
+      const probs = solution.primal.get(q.id)!;
       console.log('\nOptimal distribution:');
       let mean = 0;
       for (let i = 0; i < n; i++) {

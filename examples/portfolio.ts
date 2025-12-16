@@ -19,6 +19,7 @@
 
 import {
   variable,
+  isVariable,
   constant,
   sum,
   mul,
@@ -76,8 +77,8 @@ async function portfolioOptimization() {
     console.log('Portfolio variance:', solution.value?.toFixed(6));
     console.log('Portfolio std dev:', Math.sqrt(solution.value!).toFixed(4), '(' + (Math.sqrt(solution.value!) * 100).toFixed(2) + '%)');
 
-    if (solution.primal) {
-      const weights = solution.primal.values().next().value as Float64Array;
+    if (solution.primal && isVariable(w)) {
+      const weights = solution.primal.get(w.id)!;
       console.log('\nOptimal weights:');
       const assetNames = ['Stock A (12%)', 'Stock B (10%)', 'Stock C (7%)', 'Bonds (3%)'];
       let expectedReturn = 0;
@@ -111,8 +112,8 @@ async function portfolioOptimization() {
 
     console.log('Status:', solution.status);
 
-    if (solution.primal) {
-      const weights = solution.primal.values().next().value as Float64Array;
+    if (solution.primal && isVariable(w)) {
+      const weights = solution.primal.get(w.id)!;
       console.log('\nOptimal weights:');
       const assetNames = ['Stock A (12%)', 'Stock B (10%)', 'Stock C (7%)', 'Bonds (3%)'];
       let expectedReturn = 0;

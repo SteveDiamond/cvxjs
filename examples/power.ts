@@ -7,12 +7,10 @@
 
 import {
   variable,
+  isVariable,
   constant,
   sum,
-  mul,
-  add,
   ge,
-  le,
   eq,
   Problem,
   sqrt,
@@ -47,8 +45,8 @@ async function powerExamples() {
     console.log('Maximum sum(sqrt(x)):', solution.value?.toFixed(4));
     console.log('Expected (4 * sqrt(1) = 4):', (4 * Math.sqrt(1)).toFixed(4));
 
-    if (solution.primal) {
-      const vals = solution.primal.values().next().value as Float64Array;
+    if (solution.primal && isVariable(x)) {
+      const vals = solution.primal.get(x.id)!;
       console.log('\nOptimal allocation (should be uniform):');
       for (let i = 0; i < n; i++) {
         console.log(`  x[${i}] = ${vals[i].toFixed(4)} (sqrt = ${Math.sqrt(vals[i]).toFixed(4)})`);
@@ -79,8 +77,8 @@ async function powerExamples() {
     console.log('Maximum sum(x^0.5):', solution.value?.toFixed(4));
     console.log('Expected (3 * sqrt(3)):', (3 * Math.sqrt(3)).toFixed(4));
 
-    if (solution.primal) {
-      const vals = solution.primal.values().next().value as Float64Array;
+    if (solution.primal && isVariable(x)) {
+      const vals = solution.primal.get(x.id)!;
       console.log('\nOptimal x (should be [3, 3, 3]):');
       for (let i = 0; i < n; i++) {
         console.log(`  x[${i}] = ${vals[i].toFixed(4)}`);
@@ -111,8 +109,8 @@ async function powerExamples() {
     console.log('Minimum sum(x^2):', solution.value?.toFixed(4));
     console.log('Expected (3 * 4 = 12):', 12);
 
-    if (solution.primal) {
-      const vals = solution.primal.values().next().value as Float64Array;
+    if (solution.primal && isVariable(x)) {
+      const vals = solution.primal.get(x.id)!;
       console.log('\nOptimal x (should be [2, 2, 2]):');
       for (let i = 0; i < n; i++) {
         console.log(`  x[${i}] = ${vals[i].toFixed(4)}`);
@@ -143,8 +141,8 @@ async function powerExamples() {
     console.log('Minimum sum(x^2):', solution.value?.toFixed(4));
     console.log('Expected (3 * 1 = 3):', 3);
 
-    if (solution.primal) {
-      const vals = solution.primal.values().next().value as Float64Array;
+    if (solution.primal && isVariable(x)) {
+      const vals = solution.primal.get(x.id)!;
       console.log('\nOptimal x (should be [1, 1, 1]):');
       for (let i = 0; i < n; i++) {
         console.log(`  x[${i}] = ${vals[i].toFixed(4)}`);
@@ -157,23 +155,13 @@ async function powerExamples() {
   // Example 5: Utility Maximization with Diminishing Returns
   // =====================================================
   console.log('--- Example 5: Resource Allocation with Diminishing Returns ---');
-  console.log('maximize sum(a_i * x_i^0.3) subject to sum(x) = 10, x >= 0');
-  console.log('Different weights a_i for each resource.\n');
+  console.log('maximize sum(x_i^0.3) subject to sum(x) = 10, x >= 0\n');
 
   {
     const n = 4;
-    const weights = [1.0, 2.0, 1.5, 0.5]; // Different utilities per resource
     const x = variable(n);
 
-    // Build weighted sum of power functions
-    // sum(a_i * x_i^0.3)
-    const terms = [];
-    for (let i = 0; i < n; i++) {
-      // Create single-element variable extraction
-      // For simplicity, we'll use a single variable and compute manually
-    }
-
-    // Simplified: equal weights for now
+    // Simplified: equal weights
     const solution = await Problem.maximize(sum(power(x, 0.3)))
       .subjectTo([
         eq(sum(x), constant(10)),
@@ -184,8 +172,8 @@ async function powerExamples() {
     console.log('Status:', solution.status);
     console.log('Maximum utility:', solution.value?.toFixed(4));
 
-    if (solution.primal) {
-      const vals = solution.primal.values().next().value as Float64Array;
+    if (solution.primal && isVariable(x)) {
+      const vals = solution.primal.get(x.id)!;
       console.log('\nOptimal allocation (equal weights -> uniform):');
       for (let i = 0; i < n; i++) {
         const utility = Math.pow(vals[i], 0.3);

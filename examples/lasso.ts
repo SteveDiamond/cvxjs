@@ -19,6 +19,7 @@
 
 import {
   variable,
+  isVariable,
   constant,
   add,
   sub,
@@ -26,7 +27,6 @@ import {
   matmul,
   norm1,
   norm2,
-  le,
   Problem,
 } from '../src/index.js';
 
@@ -89,8 +89,8 @@ async function lassoRegression() {
   console.log('Status:', solution.status);
   console.log('Objective value:', solution.value?.toFixed(4));
 
-  if (solution.primal) {
-    const betaOpt = solution.primal.values().next().value as Float64Array;
+  if (solution.primal && isVariable(beta)) {
+    const betaOpt = solution.primal.get(beta.id)!;
     console.log('\nRecovered coefficients:');
     for (let j = 0; j < n; j++) {
       const recovered = betaOpt[j].toFixed(3);

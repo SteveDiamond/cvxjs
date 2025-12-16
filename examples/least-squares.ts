@@ -12,7 +12,7 @@
  *   x = parameters to fit (n)
  */
 
-import { variable, constant, sub, matmul, norm2, Problem } from '../src/index.js';
+import { variable, isVariable, constant, sub, matmul, norm2, Problem } from '../src/index.js';
 
 async function leastSquares() {
   console.log('=== Least Squares Regression ===\n');
@@ -61,8 +61,8 @@ async function leastSquares() {
   console.log('Status:', solution.status);
   console.log('Residual norm:', solution.value?.toFixed(4));
 
-  if (solution.primal) {
-    const params = solution.primal.values().next().value as Float64Array;
+  if (solution.primal && isVariable(x)) {
+    const params = solution.primal.get(x.id)!;
     const intercept = params[0];
     const slope = params[1];
 

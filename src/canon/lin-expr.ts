@@ -65,22 +65,73 @@ export function linExprZero(rows: number): LinExpr {
 }
 
 /**
- * Add two linear expressions.
+ * Broadcast a scalar LinExpr to a given size.
+ * If the LinExpr is already the target size, returns it unchanged.
+ * If it's a scalar (size 1), broadcasts to target size.
+ * Throws if neither condition is met.
+ */
+function linExprBroadcast(expr: LinExpr, targetRows: number): LinExpr {
+  if (expr.rows === targetRows) {
+    return expr;
+  }
+  if (expr.rows !== 1) {
+    throw new Error(`Cannot broadcast LinExpr of size ${expr.rows} to size ${targetRows}`);
+  }
+
+  // Scalar LinExpr - broadcast to target size
+  // coeffs: Each coefficient matrix goes from 1xN to targetRows x N via ones matrix
+  const coeffs = new Map<ExprId, CscMatrix>();
+  for (const [varId, coeff] of expr.coeffs) {
+    // Original coeff is 1 x varSize, we need targetRows x varSize
+    // Each row should be a copy of the single row
+    const varSize = coeff.ncols;
+    const rows: number[] = [];
+    const cols: number[] = [];
+    const vals: number[] = [];
+
+    for (let i = 0; i < targetRows; i++) {
+      // Copy the first row to row i
+      for (let j = 0; j < varSize; j++) {
+        for (let k = coeff.colPtr[j]!; k < coeff.colPtr[j + 1]!; k++) {
+          if (coeff.rowIdx[k] === 0) {
+            rows.push(i);
+            cols.push(j);
+            vals.push(coeff.values[k]!);
+          }
+        }
+      }
+    }
+    coeffs.set(varId, cscFromTriplets(targetRows, varSize, rows, cols, vals));
+  }
+
+  // Broadcast constant: replicate the scalar value
+  const constant = new Float64Array(targetRows);
+  const scalarVal = expr.constant[0]!;
+  for (let i = 0; i < targetRows; i++) {
+    constant[i] = scalarVal;
+  }
+
+  return { coeffs, constant, rows: targetRows };
+}
+
+/**
+ * Add two linear expressions with automatic scalar broadcasting.
  */
 export function linExprAdd(a: LinExpr, b: LinExpr): LinExpr {
-  if (a.rows !== b.rows) {
-    throw new Error(`Cannot add LinExpr with different sizes: ${a.rows} vs ${b.rows}`);
-  }
+  // Handle scalar broadcasting
+  const targetRows = Math.max(a.rows, b.rows);
+  const aBroadcast = linExprBroadcast(a, targetRows);
+  const bBroadcast = linExprBroadcast(b, targetRows);
 
   const coeffs = new Map<ExprId, CscMatrix>();
 
   // Copy coefficients from a
-  for (const [varId, coeff] of a.coeffs) {
+  for (const [varId, coeff] of aBroadcast.coeffs) {
     coeffs.set(varId, coeff);
   }
 
   // Add coefficients from b
-  for (const [varId, coeff] of b.coeffs) {
+  for (const [varId, coeff] of bBroadcast.coeffs) {
     if (coeffs.has(varId)) {
       coeffs.set(varId, cscAdd(coeffs.get(varId)!, coeff));
     } else {
@@ -89,12 +140,12 @@ export function linExprAdd(a: LinExpr, b: LinExpr): LinExpr {
   }
 
   // Add constants
-  const constant = new Float64Array(a.rows);
-  for (let i = 0; i < a.rows; i++) {
-    constant[i] = a.constant[i]! + b.constant[i]!;
+  const constant = new Float64Array(targetRows);
+  for (let i = 0; i < targetRows; i++) {
+    constant[i] = aBroadcast.constant[i]! + bBroadcast.constant[i]!;
   }
 
-  return { coeffs, constant, rows: a.rows };
+  return { coeffs, constant, rows: targetRows };
 }
 
 /**

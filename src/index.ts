@@ -65,6 +65,10 @@ export { exprShape, exprVariables, isConstantExpr, resetExprIds } from './expr/i
 export { Expr, wrap, isExpr } from './expr/index.js';
 export type { ExprInput, ArrayInput } from './expr/index.js';
 
+// === Expression Evaluation ===
+export { evaluate, evaluateScalar } from './expr/index.js';
+export type { VariableValues } from './expr/index.js';
+
 // === Affine Atoms ===
 export {
   add,

@@ -4,11 +4,7 @@
  * L1-regularized least squares for sparse linear regression.
  *
  * Problem:
- *   minimize    ||X β - y||_2^2 + λ ||β||_1
- *
- * Reformulated for SOCP:
- *   minimize    t + λ ||β||_1
- *   subject to  ||X β - y||_2 <= t
+ *   minimize    ||X β - y||_2 + λ ||β||_1
  *
  * where:
  *   X = feature matrix (m x n)
@@ -17,18 +13,7 @@
  *   λ = regularization parameter
  */
 
-import {
-  variable,
-  isVariable,
-  constant,
-  add,
-  sub,
-  mul,
-  matmul,
-  norm1,
-  norm2,
-  Problem,
-} from '../src/index.js';
+import { variable, constant, Problem } from '../src/index.js';
 
 async function lassoRegression() {
   console.log('=== Lasso Regression ===\n');
@@ -41,44 +26,40 @@ async function lassoRegression() {
   // True sparse coefficients
   const betaTrue = [3.0, 0.0, 0.0, -2.0, 0.0];
 
-  // Feature matrix (random-ish values for reproducibility)
-  // Build as 2D array for proper shape inference
-  const X_rows: number[][] = [];
+  // Feature matrix (deterministic pattern for reproducibility)
+  const X_data: number[][] = [];
   for (let i = 0; i < m; i++) {
     const row: number[] = [];
     for (let j = 0; j < n; j++) {
-      // Simple deterministic "random" pattern
       row.push(Math.sin(i * 0.5 + j * 1.3) + Math.cos(i * 0.3 - j * 0.7));
     }
-    X_rows.push(row);
+    X_data.push(row);
   }
 
-  // Generate y = X @ beta_true (+ small noise would be added in practice)
+  // Generate y = X @ beta_true + small noise
   const y_data: number[] = [];
   for (let i = 0; i < m; i++) {
-    let sum = 0;
+    let val = 0;
     for (let j = 0; j < n; j++) {
-      sum += X_rows[i][j] * betaTrue[j];
+      val += X_data[i][j] * betaTrue[j];
     }
-    y_data.push(sum + 0.1 * Math.sin(i)); // small noise
+    y_data.push(val + 0.1 * Math.sin(i));
   }
 
-  const X = constant(X_rows); // m x n matrix
-  const y = constant(y_data); // m vector
+  const X = constant(X_data);
+  const y = constant(y_data);
 
-  // Decision variables
+  // Decision variable
   const beta = variable(n);
 
   // Regularization parameter
   const lambda = 0.5;
 
   // Residual: X @ beta - y
-  const residual = sub(matmul(X, beta), y);
+  const residual = X.matmul(beta).sub(y);
 
-  // Lasso objective: ||residual||_2 + lambda * ||beta||_1
-  // Note: We minimize ||residual||_2 (not squared) + lambda * ||beta||_1
-  // This is slightly different from standard Lasso but is a valid SOCP
-  const objective = add(norm2(residual), mul(constant(lambda), norm1(beta)));
+  // Lasso objective: ||residual||_2 + λ * ||β||_1
+  const objective = residual.norm2().add(beta.norm1().mul(lambda));
 
   console.log(`Data: ${m} samples, ${n} features`);
   console.log(`True coefficients: [${betaTrue.join(', ')}]`);
@@ -89,15 +70,13 @@ async function lassoRegression() {
   console.log('Status:', solution.status);
   console.log('Objective value:', solution.value?.toFixed(4));
 
-  if (solution.primal && isVariable(beta)) {
-    const betaOpt = solution.primal.get(beta.id)!;
-    console.log('\nRecovered coefficients:');
-    for (let j = 0; j < n; j++) {
-      const recovered = betaOpt[j].toFixed(3);
-      const truth = betaTrue[j].toFixed(3);
-      const marker = Math.abs(betaOpt[j]) < 0.1 ? ' (sparse)' : '';
-      console.log(`  β[${j}] = ${recovered.padStart(7)} (true: ${truth})${marker}`);
-    }
+  const betaOpt = solution.valueOf(beta)!;
+  console.log('\nRecovered coefficients:');
+  for (let j = 0; j < n; j++) {
+    const recovered = betaOpt[j].toFixed(3);
+    const truth = betaTrue[j].toFixed(3);
+    const marker = Math.abs(betaOpt[j]) < 0.1 ? ' (sparse)' : '';
+    console.log(`  β[${j}] = ${recovered.padStart(7)} (true: ${truth})${marker}`);
   }
 
   console.log('\nNote: L1 regularization encourages sparse solutions.');

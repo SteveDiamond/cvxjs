@@ -5,18 +5,7 @@
  * power cone optimization.
  */
 
-import {
-  variable,
-  isVariable,
-  constant,
-  sum,
-  ge,
-  eq,
-  Problem,
-  sqrt,
-  power,
-  sumSquares,
-} from '../src/index.js';
+import { variable, Problem } from '../src/index.js';
 
 async function powerExamples() {
   console.log('=== Power and Square Root Optimization ===\n');
@@ -33,11 +22,10 @@ async function powerExamples() {
     const x = variable(n);
     const budget = 4;
 
-    // sqrt(x) is concave, so sum(sqrt(x)) is concave
-    const solution = await Problem.maximize(sum(sqrt(x)))
+    const solution = await Problem.maximize(x.sqrt().sum())
       .subjectTo([
-        eq(sum(x), constant(budget)), // Budget constraint
-        ge(x, constant(new Float64Array(n).fill(0.001))), // x > 0
+        x.sum().eq(budget), // Budget constraint
+        x.ge(0.001), // x > 0
       ])
       .solve();
 
@@ -45,18 +33,16 @@ async function powerExamples() {
     console.log('Maximum sum(sqrt(x)):', solution.value?.toFixed(4));
     console.log('Expected (4 * sqrt(1) = 4):', (4 * Math.sqrt(1)).toFixed(4));
 
-    if (solution.primal && isVariable(x)) {
-      const vals = solution.primal.get(x.id)!;
-      console.log('\nOptimal allocation (should be uniform):');
-      for (let i = 0; i < n; i++) {
-        console.log(`  x[${i}] = ${vals[i].toFixed(4)} (sqrt = ${Math.sqrt(vals[i]).toFixed(4)})`);
-      }
+    const vals = solution.valueOf(x)!;
+    console.log('\nOptimal allocation (should be uniform):');
+    for (let i = 0; i < n; i++) {
+      console.log(`  x[${i}] = ${vals[i].toFixed(4)} (sqrt = ${Math.sqrt(vals[i]).toFixed(4)})`);
     }
     console.log();
   }
 
   // =====================================================
-  // Example 2: Geometric Mean Maximization
+  // Example 2: Power Function (x^0.5)
   // =====================================================
   console.log('--- Example 2: Power Function (x^0.5) ---');
   console.log('maximize sum(x^0.5) subject to sum(x) = 9, x >= 0\n');
@@ -65,11 +51,10 @@ async function powerExamples() {
     const n = 3;
     const x = variable(n);
 
-    // power(x, 0.5) is same as sqrt(x)
-    const solution = await Problem.maximize(sum(power(x, 0.5)))
+    const solution = await Problem.maximize(x.power(0.5).sum())
       .subjectTo([
-        eq(sum(x), constant(9)),
-        ge(x, constant(new Float64Array(n).fill(0.001))),
+        x.sum().eq(9),
+        x.ge(0.001),
       ])
       .solve();
 
@@ -77,12 +62,10 @@ async function powerExamples() {
     console.log('Maximum sum(x^0.5):', solution.value?.toFixed(4));
     console.log('Expected (3 * sqrt(3)):', (3 * Math.sqrt(3)).toFixed(4));
 
-    if (solution.primal && isVariable(x)) {
-      const vals = solution.primal.get(x.id)!;
-      console.log('\nOptimal x (should be [3, 3, 3]):');
-      for (let i = 0; i < n; i++) {
-        console.log(`  x[${i}] = ${vals[i].toFixed(4)}`);
-      }
+    const vals = solution.valueOf(x)!;
+    console.log('\nOptimal x (should be [3, 3, 3]):');
+    for (let i = 0; i < n; i++) {
+      console.log(`  x[${i}] = ${vals[i].toFixed(4)}`);
     }
     console.log();
   }
@@ -97,11 +80,10 @@ async function powerExamples() {
     const n = 3;
     const x = variable(n);
 
-    // sumSquares is convex, so this is a QP
-    const solution = await Problem.minimize(sumSquares(x))
+    const solution = await Problem.minimize(x.sumSquares())
       .subjectTo([
-        eq(sum(x), constant(6)),
-        ge(x, constant(new Float64Array(n).fill(0))),
+        x.sum().eq(6),
+        x.ge(0),
       ])
       .solve();
 
@@ -109,12 +91,10 @@ async function powerExamples() {
     console.log('Minimum sum(x^2):', solution.value?.toFixed(4));
     console.log('Expected (3 * 4 = 12):', 12);
 
-    if (solution.primal && isVariable(x)) {
-      const vals = solution.primal.get(x.id)!;
-      console.log('\nOptimal x (should be [2, 2, 2]):');
-      for (let i = 0; i < n; i++) {
-        console.log(`  x[${i}] = ${vals[i].toFixed(4)}`);
-      }
+    const vals = solution.valueOf(x)!;
+    console.log('\nOptimal x (should be [2, 2, 2]):');
+    for (let i = 0; i < n; i++) {
+      console.log(`  x[${i}] = ${vals[i].toFixed(4)}`);
     }
     console.log();
   }
@@ -129,11 +109,10 @@ async function powerExamples() {
     const n = 3;
     const x = variable(n);
 
-    // power(x, 2) is convex for x >= 0
-    const solution = await Problem.minimize(sum(power(x, 2)))
+    const solution = await Problem.minimize(x.power(2).sum())
       .subjectTo([
-        ge(sum(x), constant(3)),
-        ge(x, constant(new Float64Array(n).fill(0))),
+        x.sum().ge(3),
+        x.ge(0),
       ])
       .solve();
 
@@ -141,12 +120,10 @@ async function powerExamples() {
     console.log('Minimum sum(x^2):', solution.value?.toFixed(4));
     console.log('Expected (3 * 1 = 3):', 3);
 
-    if (solution.primal && isVariable(x)) {
-      const vals = solution.primal.get(x.id)!;
-      console.log('\nOptimal x (should be [1, 1, 1]):');
-      for (let i = 0; i < n; i++) {
-        console.log(`  x[${i}] = ${vals[i].toFixed(4)}`);
-      }
+    const vals = solution.valueOf(x)!;
+    console.log('\nOptimal x (should be [1, 1, 1]):');
+    for (let i = 0; i < n; i++) {
+      console.log(`  x[${i}] = ${vals[i].toFixed(4)}`);
     }
     console.log();
   }
@@ -161,24 +138,21 @@ async function powerExamples() {
     const n = 4;
     const x = variable(n);
 
-    // Simplified: equal weights
-    const solution = await Problem.maximize(sum(power(x, 0.3)))
+    const solution = await Problem.maximize(x.power(0.3).sum())
       .subjectTo([
-        eq(sum(x), constant(10)),
-        ge(x, constant(new Float64Array(n).fill(0.01))),
+        x.sum().eq(10),
+        x.ge(0.01),
       ])
       .solve();
 
     console.log('Status:', solution.status);
     console.log('Maximum utility:', solution.value?.toFixed(4));
 
-    if (solution.primal && isVariable(x)) {
-      const vals = solution.primal.get(x.id)!;
-      console.log('\nOptimal allocation (equal weights -> uniform):');
-      for (let i = 0; i < n; i++) {
-        const utility = Math.pow(vals[i], 0.3);
-        console.log(`  x[${i}] = ${vals[i].toFixed(4)} (utility = ${utility.toFixed(4)})`);
-      }
+    const vals = solution.valueOf(x)!;
+    console.log('\nOptimal allocation (equal weights -> uniform):');
+    for (let i = 0; i < n; i++) {
+      const utility = Math.pow(vals[i], 0.3);
+      console.log(`  x[${i}] = ${vals[i].toFixed(4)} (utility = ${utility.toFixed(4)})`);
     }
     console.log();
   }

@@ -17,18 +17,7 @@
  *   r_min = minimum required return
  */
 
-import {
-  variable,
-  isVariable,
-  constant,
-  sum,
-  mul,
-  ge,
-  eq,
-  Problem,
-  quadForm,
-  add,
-} from '../src/index.js';
+import { variable, constant, Problem } from '../src/index.js';
 
 async function portfolioOptimization() {
   console.log('=== Portfolio Optimization (Mean-Variance) ===\n');
@@ -36,8 +25,8 @@ async function portfolioOptimization() {
   // 4 assets with expected returns and covariance matrix
   const expectedReturns = [0.12, 0.1, 0.07, 0.03]; // 12%, 10%, 7%, 3%
 
-  // Covariance matrix (symmetric positive definite) - row-major as 2D array
-  // Asset 1: 20% vol, Asset 2: 15.8% vol, Asset 3: 10% vol, Asset 4: 5% vol
+  // Covariance matrix (symmetric positive definite)
+  // Asset volatilities: 20%, 15.8%, 10%, 5%
   const covariance = [
     [0.04, 0.006, 0.002, 0.0],
     [0.006, 0.025, 0.004, 0.001],
@@ -46,15 +35,20 @@ async function portfolioOptimization() {
   ];
 
   const n = 4;
-  const minReturn = 0.08; // Require at least 8% expected return
-  const riskAversion = 2.0; // Risk aversion parameter
+  const minReturn = 0.08;
+  const riskAversion = 2.0;
+  const assetNames = ['Stock A (12%)', 'Stock B (10%)', 'Stock C (7%)', 'Bonds (3%)'];
 
   // Decision variable: portfolio weights
   const w = variable(n);
 
-  // Covariance matrix and expected returns as constants
+  // Constants
   const Sigma = constant(covariance);
-  const mu = constant(new Float64Array(expectedReturns));
+  const mu = constant(expectedReturns);
+
+  // Expressions for analysis
+  const portfolioVariance = w.quadForm(Sigma);
+  const portfolioReturn = mu.mul(w).sum();
 
   // =====================================================
   // Example 1: Minimize variance subject to return constraint
@@ -63,31 +57,31 @@ async function portfolioOptimization() {
   console.log(`minimize w'Σw subject to μ'w >= ${minReturn * 100}%, sum(w) = 1, w >= 0\n`);
 
   {
-    // Objective: minimize w' Σ w (portfolio variance)
-    // Using quadForm for native QP support!
-    const solution = await Problem.minimize(quadForm(w, Sigma))
+    const solution = await Problem.minimize(portfolioVariance)
       .subjectTo([
-        ge(sum(mul(mu, w)), constant(minReturn)), // Return >= min return
-        eq(sum(w), constant(1)), // Weights sum to 1
-        ge(w, constant(new Float64Array(n))), // No short selling
+        portfolioReturn.ge(minReturn),
+        w.sum().eq(1),
+        w.ge(0),
       ])
       .solve();
 
     console.log('Status:', solution.status);
     console.log('Portfolio variance:', solution.value?.toFixed(6));
-    console.log('Portfolio std dev:', Math.sqrt(solution.value!).toFixed(4), '(' + (Math.sqrt(solution.value!) * 100).toFixed(2) + '%)');
+    console.log(
+      'Portfolio std dev:',
+      Math.sqrt(solution.value!).toFixed(4),
+      '(' + (Math.sqrt(solution.value!) * 100).toFixed(2) + '%)'
+    );
 
-    if (solution.primal && isVariable(w)) {
-      const weights = solution.primal.get(w.id)!;
-      console.log('\nOptimal weights:');
-      const assetNames = ['Stock A (12%)', 'Stock B (10%)', 'Stock C (7%)', 'Bonds (3%)'];
-      let expectedReturn = 0;
-      for (let i = 0; i < n; i++) {
-        console.log(`  ${assetNames[i]}: ${(weights[i] * 100).toFixed(1)}%`);
-        expectedReturn += weights[i] * expectedReturns[i];
-      }
-      console.log(`\nExpected return: ${(expectedReturn * 100).toFixed(2)}%`);
+    const weights = solution.valueOf(w)!;
+    console.log('\nOptimal weights:');
+    for (let i = 0; i < n; i++) {
+      console.log(`  ${assetNames[i]}: ${(weights[i] * 100).toFixed(1)}%`);
     }
+
+    // Use expression evaluation instead of manual calculation
+    const expReturn = portfolioReturn.value(solution.primal!);
+    console.log(`\nExpected return: ${(expReturn * 100).toFixed(2)}%`);
     console.log();
   }
 
@@ -99,38 +93,29 @@ async function portfolioOptimization() {
 
   {
     // Objective: minimize λ * variance - return
-    // This is a risk-aversion weighted tradeoff
-    const variance = quadForm(w, Sigma);
-    const returnTerm = sum(mul(mu, w));
+    const objective = portfolioVariance.mul(riskAversion).sub(portfolioReturn);
 
-    const solution = await Problem.minimize(add(mul(riskAversion, variance), mul(-1, returnTerm)))
+    const solution = await Problem.minimize(objective)
       .subjectTo([
-        eq(sum(w), constant(1)), // Weights sum to 1
-        ge(w, constant(new Float64Array(n))), // No short selling
+        w.sum().eq(1),
+        w.ge(0),
       ])
       .solve();
 
     console.log('Status:', solution.status);
 
-    if (solution.primal && isVariable(w)) {
-      const weights = solution.primal.get(w.id)!;
-      console.log('\nOptimal weights:');
-      const assetNames = ['Stock A (12%)', 'Stock B (10%)', 'Stock C (7%)', 'Bonds (3%)'];
-      let expectedReturn = 0;
-      let portfolioVariance = 0;
-      for (let i = 0; i < n; i++) {
-        console.log(`  ${assetNames[i]}: ${(weights[i] * 100).toFixed(1)}%`);
-        expectedReturn += weights[i] * expectedReturns[i];
-      }
-      // Compute variance: w' Σ w
-      for (let i = 0; i < n; i++) {
-        for (let j = 0; j < n; j++) {
-          portfolioVariance += weights[i] * weights[j] * covariance[i][j];
-        }
-      }
-      console.log(`\nExpected return: ${(expectedReturn * 100).toFixed(2)}%`);
-      console.log(`Portfolio std dev: ${(Math.sqrt(portfolioVariance) * 100).toFixed(2)}%`);
+    const weights = solution.valueOf(w)!;
+    console.log('\nOptimal weights:');
+    for (let i = 0; i < n; i++) {
+      console.log(`  ${assetNames[i]}: ${(weights[i] * 100).toFixed(1)}%`);
     }
+
+    // Use expression evaluation - no manual recalculation needed!
+    const expReturn = portfolioReturn.value(solution.primal!);
+    const variance = portfolioVariance.value(solution.primal!);
+
+    console.log(`\nExpected return: ${(expReturn * 100).toFixed(2)}%`);
+    console.log(`Portfolio std dev: ${(Math.sqrt(variance) * 100).toFixed(2)}%`);
     console.log();
   }
 

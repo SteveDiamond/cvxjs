@@ -4,7 +4,7 @@
  * Demonstrates the core cvxjs API with simple optimization problems.
  */
 
-import { variable, isVariable, constant, sum, norm2, norm1, ge, le, eq, Problem } from '../src/index.js';
+import { variable, Problem } from '../src/index.js';
 
 async function basicExamples() {
   console.log('=== cvxjs Basic Examples ===\n');
@@ -15,19 +15,14 @@ async function basicExamples() {
 
   {
     const x = variable(3);
-    const solution = await Problem.minimize(sum(x))
-      .subjectTo([ge(x, constant(new Float64Array([1, 1, 1])))])
+
+    const solution = await Problem.minimize(x.sum())
+      .subjectTo([x.ge(1)])
       .solve();
 
     console.log('Status:', solution.status);
     console.log('Optimal value:', solution.value);
-    if (solution.primal && isVariable(x)) {
-      const xVal = solution.primal.get(x.id)!;
-      console.log(
-        'x =',
-        Array.from(xVal).map((v) => v.toFixed(2))
-      );
-    }
+    console.log('x =', Array.from(solution.valueOf(x)!).map((v) => v.toFixed(2)));
     console.log();
   }
 
@@ -37,22 +32,14 @@ async function basicExamples() {
 
   {
     const x = variable(3);
-    const zeros = constant(new Float64Array([0, 0, 0]));
-    const twos = constant(new Float64Array([2, 2, 2]));
 
-    const solution = await Problem.maximize(sum(x))
-      .subjectTo([ge(x, zeros), le(x, twos)])
+    const solution = await Problem.maximize(x.sum())
+      .subjectTo([x.ge(0), x.le(2)])
       .solve();
 
     console.log('Status:', solution.status);
     console.log('Optimal value:', solution.value);
-    if (solution.primal && isVariable(x)) {
-      const xVal = solution.primal.get(x.id)!;
-      console.log(
-        'x =',
-        Array.from(xVal).map((v) => v.toFixed(2))
-      );
-    }
+    console.log('x =', Array.from(solution.valueOf(x)!).map((v) => v.toFixed(2)));
     console.log();
   }
 
@@ -62,20 +49,15 @@ async function basicExamples() {
 
   {
     const x = variable(3);
-    const solution = await Problem.minimize(norm2(x))
-      .subjectTo([eq(sum(x), constant(3))])
+
+    const solution = await Problem.minimize(x.norm2())
+      .subjectTo([x.sum().eq(3)])
       .solve();
 
     console.log('Status:', solution.status);
     console.log('Optimal ||x||_2:', solution.value?.toFixed(4));
     console.log('Expected: sqrt(3) =', Math.sqrt(3).toFixed(4));
-    if (solution.primal && isVariable(x)) {
-      const xVal = solution.primal.get(x.id)!;
-      console.log(
-        'x =',
-        Array.from(xVal).map((v) => v.toFixed(4))
-      );
-    }
+    console.log('x =', Array.from(solution.valueOf(x)!).map((v) => v.toFixed(4)));
     console.log();
   }
 
@@ -85,21 +67,14 @@ async function basicExamples() {
 
   {
     const x = variable(3);
-    const zeros = constant(new Float64Array([0, 0, 0]));
 
-    const solution = await Problem.minimize(norm1(x))
-      .subjectTo([eq(sum(x), constant(3)), ge(x, zeros)])
+    const solution = await Problem.minimize(x.norm1())
+      .subjectTo([x.sum().eq(3), x.ge(0)])
       .solve();
 
     console.log('Status:', solution.status);
     console.log('Optimal ||x||_1:', solution.value?.toFixed(4));
-    if (solution.primal && isVariable(x)) {
-      const xVal = solution.primal.get(x.id)!;
-      console.log(
-        'x =',
-        Array.from(xVal).map((v) => v.toFixed(4))
-      );
-    }
+    console.log('x =', Array.from(solution.valueOf(x)!).map((v) => v.toFixed(4)));
     console.log();
   }
 

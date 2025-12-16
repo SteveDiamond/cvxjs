@@ -1,4 +1,4 @@
-import { ExprData, ExprId, exprShape, IndexRange, newExprId } from './expr-data.js';
+import { ExprData, ExprId, exprShape, newExprId } from './expr-data.js';
 import { Shape } from './shape.js';
 import { toArrayData } from './constant.js';
 import { Constraint } from '../constraints/constraint.js';
@@ -49,10 +49,16 @@ import {
   soc as socFn,
 } from '../constraints/constraint.js';
 
+import {
+  evaluate as evaluateFn,
+  evaluateScalar as evaluateScalarFn,
+  VariableValues,
+} from './evaluate.js';
+
 /**
- * Input type for Expr methods - accepts Expr, ExprData, or number.
+ * Input type for Expr methods - accepts Expr, ExprData, numbers, or arrays.
  */
-export type ExprInput = Expr | ExprData | number;
+export type ExprInput = Expr | ExprData | number | readonly number[] | readonly (readonly number[])[];
 
 /**
  * Input type for array-like values.
@@ -75,7 +81,7 @@ function makeConstant(value: ArrayInput): ExprData {
 }
 
 /**
- * Convert ExprInput to ExprData, auto-wrapping numbers as constants.
+ * Convert ExprInput to ExprData, auto-wrapping numbers and arrays as constants.
  */
 function toExprData(value: ExprInput): ExprData {
   if (value instanceof Expr) {
@@ -84,7 +90,12 @@ function toExprData(value: ExprInput): ExprData {
   if (typeof value === 'number') {
     return makeConstant(value);
   }
-  return value;
+  // Check if it's an array (1D or 2D)
+  if (Array.isArray(value)) {
+    return makeConstant(value as ArrayInput);
+  }
+  // Must be ExprData
+  return value as ExprData;
 }
 
 /**
@@ -564,6 +575,44 @@ export class Expr {
    */
   soc(t: ExprInput): Constraint {
     return socFn(this.data, toExprData(t));
+  }
+
+  // ==================== Evaluation ====================
+
+  /**
+   * Evaluate this expression given variable values.
+   *
+   * @example
+   * ```ts
+   * const x = variable(3);
+   * const expr = x.sum().mul(2);
+   * const solution = await Problem.minimize(x.sum()).solve();
+   *
+   * // Evaluate expression at the solution
+   * const result = expr.evaluate(solution.primal!);
+   * console.log('2 * sum(x) =', result);
+   * ```
+   */
+  evaluate(values: VariableValues): Float64Array {
+    return evaluateFn(this.data, values);
+  }
+
+  /**
+   * Evaluate this expression as a scalar given variable values.
+   * Throws if the result is not a scalar.
+   *
+   * @example
+   * ```ts
+   * const x = variable(3);
+   * const totalCost = x.sum();
+   * const solution = await Problem.minimize(totalCost).solve();
+   *
+   * const cost = totalCost.value(solution.primal!);
+   * console.log('Total cost:', cost);
+   * ```
+   */
+  value(values: VariableValues): number {
+    return evaluateScalarFn(this.data, values);
   }
 
   // ==================== Static Methods for Combining Expressions ====================

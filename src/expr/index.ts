@@ -77,3 +77,7 @@ export {
 // Expression wrapper class
 export { Expr, wrap, isExpr } from './expr.js';
 export type { ExprInput, ArrayInput } from './expr.js';
+
+// Expression evaluation
+export { evaluate, evaluateScalar } from './evaluate.js';
+export type { VariableValues } from './evaluate.js';

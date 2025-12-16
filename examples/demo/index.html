@@ -741,36 +741,35 @@
   <script type="module">
     import { variable, constant, Problem } from 'cvxjs';
 
-    // Asset data - SYNTHETIC/REPRESENTATIVE values for demonstration
-    // Returns and volatilities are approximate historical averages
-    // For real applications, use actual historical data or forward estimates
-    const ASSETS = [
-      { id: 'us_total', name: 'US Total Market', return: 0.105, volatility: 0.185, color: '#38bdf8' },
-      { id: 'us_scv', name: 'US Small Value', return: 0.125, volatility: 0.225, color: '#fb7185' },
-      { id: 'us_lcg', name: 'US Large Growth', return: 0.098, volatility: 0.195, color: '#a78bfa' },
-      { id: 'intl_dev', name: 'Intl Developed', return: 0.085, volatility: 0.175, color: '#34d399' },
-      { id: 'em', name: 'Emerging Markets', return: 0.095, volatility: 0.265, color: '#fbbf24' },
-      { id: 'us_bond', name: 'US Bonds', return: 0.050, volatility: 0.055, color: '#60a5fa' },
-      { id: 'lt_treasury', name: 'Long Treasury', return: 0.058, volatility: 0.115, color: '#2dd4bf' },
-      { id: 'tips', name: 'TIPS', return: 0.042, volatility: 0.065, color: '#f472b6' },
-      { id: 'reits', name: 'REITs', return: 0.095, volatility: 0.205, color: '#a3e635' },
-      { id: 'gold', name: 'Gold', return: 0.065, volatility: 0.165, color: '#facc15' },
-    ];
+    // Asset data loaded from Simba historical returns
+    // Data source: Bogleheads Simba Backtesting Spreadsheet
+    let ASSETS = [];
+    let CORRELATIONS = [];
+    let DATA_PERIOD = { start: 1974, end: 2024 };
+    let RISK_FREE_RATE = 0.04;
 
-    // Correlation matrix - SYNTHETIC values based on typical asset class relationships
-    // Stocks correlated with each other, bonds anti-correlated with stocks, etc.
-    const CORRELATIONS = [
-      [1.00, 0.78, 0.95, 0.72, 0.65, 0.02, -0.08, 0.05, 0.58, 0.02],
-      [0.78, 1.00, 0.68, 0.62, 0.58, 0.05, -0.05, 0.08, 0.65, 0.05],
-      [0.95, 0.68, 1.00, 0.70, 0.62, -0.02, -0.12, 0.02, 0.52, -0.02],
-      [0.72, 0.62, 0.70, 1.00, 0.75, 0.08, 0.02, 0.10, 0.55, 0.12],
-      [0.65, 0.58, 0.62, 0.75, 1.00, 0.05, -0.02, 0.08, 0.50, 0.15],
-      [0.02, 0.05, -0.02, 0.08, 0.05, 1.00, 0.85, 0.75, 0.12, 0.18],
-      [-0.08, -0.05, -0.12, 0.02, -0.02, 0.85, 1.00, 0.65, 0.08, 0.22],
-      [0.05, 0.08, 0.02, 0.10, 0.08, 0.75, 0.65, 1.00, 0.15, 0.25],
-      [0.58, 0.65, 0.52, 0.55, 0.50, 0.12, 0.08, 0.15, 1.00, 0.10],
-      [0.02, 0.05, -0.02, 0.12, 0.15, 0.18, 0.22, 0.25, 0.10, 1.00],
-    ];
+    async function loadSimbaData() {
+      const response = await fetch('./data/simba-data.json');
+      if (!response.ok) {
+        throw new Error(`Failed to load Simba data: ${response.status}`);
+      }
+      const data = await response.json();
+
+      // Map loaded assets to expected format
+      ASSETS = data.assets.map(a => ({
+        id: a.id,
+        name: a.name,
+        return: a.return,
+        volatility: a.volatility,
+        color: a.color
+      }));
+
+      CORRELATIONS = data.correlations;
+      RISK_FREE_RATE = data.riskFreeRate;
+      DATA_PERIOD = data.period;
+
+      console.log(`Loaded Simba data: ${ASSETS.length} assets, period ${DATA_PERIOD.start}-${DATA_PERIOD.end}`);
+    }
 
     function computeCovarianceMatrix(assets, correlations) {
       const n = assets.length;
@@ -794,7 +793,6 @@
     let selectedIndices = [0, 1, 5];
     let solveCount = 0;
     let totalSolveTime = 0;
-    const RISK_FREE_RATE = 0.04;
 
     // Check mark SVG
     const checkSvg = `<svg viewBox="0 0 12 12" fill="none" stroke="#0a0e17" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"></polyline></svg>`;
@@ -1217,10 +1215,13 @@
 
     async function init() {
       try {
+        // Load historical data from Simba spreadsheet
+        await loadSimbaData();
+
         initUI();
         initChart();
         await recomputeFrontier();
-        document.getElementById('status-text').textContent = `cvxjs ready`;
+        document.getElementById('status-text').textContent = `Based on ${DATA_PERIOD.start}-${DATA_PERIOD.end} returns`;
       } catch (e) {
         showError(`Init failed: ${e.message}`);
         console.error(e);

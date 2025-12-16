@@ -41,6 +41,7 @@
     "example:portfolio": "npx tsx examples/portfolio.ts",
     "example:entropy": "npx tsx examples/entropy.ts",
     "example:power": "npx tsx examples/power.ts",
+    "extract-simba": "npx tsx scripts/extract-simba-data.ts",
     "test:browser": "npx serve -l 3000 .",
     "prepublishOnly": "npm run build && npm run test:run"
   },
@@ -59,7 +60,8 @@
     "typescript-eslint": "^8.49.0",
     "vite-plugin-top-level-await": "^1.6.0",
     "vite-plugin-wasm": "^3.5.0",
-    "vitest": "^1.2.0"
+    "vitest": "^1.2.0",
+    "xlsx": "^0.18.5"
   },
   "engines": {
     "node": ">=18"

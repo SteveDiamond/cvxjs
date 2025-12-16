@@ -170,7 +170,7 @@ function correlationFromYearlyData(
 
 function main() {
   const excelPath = path.join(__dirname, '..', 'Backtest-Portfolio-returns-rev24c.xlsx');
-  const outputPath = path.join(__dirname, '..', 'examples', 'demo', 'data', 'simba-data.json');
+  const outputPath = path.join(__dirname, '..', 'examples', 'demo', 'public', 'data', 'simba-data.json');
 
   console.log('Reading Excel file:', excelPath);
   const returnsByAsset = parseExcelData(excelPath);

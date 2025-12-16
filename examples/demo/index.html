@@ -749,7 +749,7 @@
     let RISK_FREE_RATE = 0.04;
 
     async function loadSimbaData() {
-      const response = await fetch('./data/simba-data.json');
+      const response = await fetch('/data/simba-data.json');
       if (!response.ok) {
         throw new Error(`Failed to load Simba data: ${response.status}`);
       }

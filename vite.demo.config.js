@@ -5,8 +5,13 @@ import topLevelAwait from 'vite-plugin-top-level-await';
 
 export default defineConfig({
   root: './examples/demo',
+  base: '/',
   server: {
     port: 5173,
+  },
+  build: {
+    outDir: '../../dist-demo',
+    emptyOutDir: true,
   },
   plugins: [
     wasm(),

@@ -1,8 +1,9 @@
 import { ExprId } from '../expr/index.js';
 import { LinExpr } from './lin-expr.js';
+import { QuadExpr, parseQuadCoeffKey } from './quad-expr.js';
 import { ConeConstraint, ConeDims, emptyConeDims } from './cone-constraint.js';
 import { AuxVar } from './canonicalizer.js';
-import { CscMatrix, cscZeros, cscFromTriplets, cscVstack } from '../sparse/index.js';
+import { CscMatrix, cscZeros, cscFromTriplets, cscVstack, cscAdd } from '../sparse/index.js';
 
 /**
  * Variable mapping from expression IDs to solver variable indices.
@@ -148,21 +149,81 @@ export function stuffObjective(linExpr: LinExpr, varMap: VariableMap): Float64Ar
 }
 
 /**
+ * Stuff quadratic objective into P matrix.
+ *
+ * The P matrix represents the quadratic part of the objective.
+ * Clarabel expects the form (1/2) x' P x, so if we have x' Q x,
+ * we need P = 2 * Q.
+ */
+export function stuffQuadraticObjective(
+  quadExpr: QuadExpr,
+  varMap: VariableMap
+): CscMatrix {
+  const nVars = varMap.totalVars;
+
+  // Start with zero matrix
+  let P = cscZeros(nVars, nVars);
+
+  for (const [key, coeff] of quadExpr.quadCoeffs) {
+    const [varId1, varId2] = parseQuadCoeffKey(key);
+    const mapping1 = varMap.idToCol.get(varId1);
+    const mapping2 = varMap.idToCol.get(varId2);
+
+    if (!mapping1 || !mapping2) {
+      throw new Error(`Variable not found in variable map: ${varId1} or ${varId2}`);
+    }
+
+    // coeff is the P_ij block for variables i and j
+    // For single variable case (varId1 === varId2), coeff is the full P matrix
+    // Clarabel expects (1/2) x' P x, so we scale by 2
+
+    // Build triplets for this block
+    const rows: number[] = [];
+    const cols: number[] = [];
+    const vals: number[] = [];
+
+    for (let c = 0; c < coeff.ncols; c++) {
+      for (let i = coeff.colPtr[c]!; i < coeff.colPtr[c + 1]!; i++) {
+        const r = coeff.rowIdx[i]!;
+        const v = coeff.values[i]!;
+
+        // Map to global variable indices
+        const globalRow = mapping1.start + r;
+        const globalCol = mapping2.start + c;
+
+        // Scale by 2 for Clarabel's (1/2) x' P x form
+        rows.push(globalRow);
+        cols.push(globalCol);
+        vals.push(2 * v);
+      }
+    }
+
+    const block = cscFromTriplets(nVars, nVars, rows, cols, vals);
+    P = cscAdd(P, block);
+  }
+
+  return P;
+}
+
+/**
  * Stuff problem into standard solver form.
  */
 export function stuffProblem(
   objectiveLinExpr: LinExpr,
   coneConstraints: ConeConstraint[],
   varMap: VariableMap,
-  objectiveOffset: number
+  objectiveOffset: number,
+  objectiveQuadExpr?: QuadExpr
 ): StuffedProblem {
   const nVars = varMap.totalVars;
 
   // Stuff objective
   const q = stuffObjective(objectiveLinExpr, varMap);
 
-  // For now, no quadratic objective (P = 0)
-  const P = cscZeros(nVars, nVars);
+  // Build P matrix from quadratic expression if present
+  const P = objectiveQuadExpr
+    ? stuffQuadraticObjective(objectiveQuadExpr, varMap)
+    : cscZeros(nVars, nVars);
 
   // Organize constraints by cone type
   const zeroConstraints: ConeConstraint[] = [];
@@ -246,12 +307,14 @@ export function stuffProblem(
     coneDims.soc.push(c.t.rows + c.x.rows);
   }
 
-  // Exponential cone constraints
+  // Exponential cone constraints: s = [x; y; z] in ExpCone
+  // From Ax + s = b: s = b - A_clarabel*vars
+  // For s = [x; y; z], we need negate=true like SOC
   for (const c of expConstraints) {
     if (c.kind !== 'exp') continue;
-    const { A: Ax, b: bx } = stuffLinExpr(c.x, varMap, false);
-    const { A: Ay, b: by } = stuffLinExpr(c.y, varMap, false);
-    const { A: Az, b: bz } = stuffLinExpr(c.z, varMap, false);
+    const { A: Ax, b: bx } = stuffLinExpr(c.x, varMap, true); // NEGATE for correct slack
+    const { A: Ay, b: by } = stuffLinExpr(c.y, varMap, true); // NEGATE for correct slack
+    const { A: Az, b: bz } = stuffLinExpr(c.z, varMap, true); // NEGATE for correct slack
 
     // Stack [x; y; z]
     As.push(cscVstack(cscVstack(Ax, Ay), Az));
@@ -264,12 +327,14 @@ export function stuffProblem(
     coneDims.exp += 1;
   }
 
-  // Power cone constraints
+  // Power cone constraints: s = [x; y; z] in PowerCone(alpha)
+  // From Ax + s = b: s = b - A_clarabel*vars
+  // For s = [x; y; z], we need negate=true like SOC
   for (const c of powerConstraints) {
     if (c.kind !== 'power') continue;
-    const { A: Ax, b: bx } = stuffLinExpr(c.x, varMap, false);
-    const { A: Ay, b: by } = stuffLinExpr(c.y, varMap, false);
-    const { A: Az, b: bz } = stuffLinExpr(c.z, varMap, false);
+    const { A: Ax, b: bx } = stuffLinExpr(c.x, varMap, true); // NEGATE for correct slack
+    const { A: Ay, b: by } = stuffLinExpr(c.y, varMap, true); // NEGATE for correct slack
+    const { A: Az, b: bz } = stuffLinExpr(c.z, varMap, true); // NEGATE for correct slack
 
     // Stack [x; y; z]
     As.push(cscVstack(cscVstack(Ax, Ay), Az));

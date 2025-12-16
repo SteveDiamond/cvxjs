@@ -39,8 +39,10 @@
     "example:lasso": "npx tsx examples/lasso.ts",
     "example:least-squares": "npx tsx examples/least-squares.ts",
     "example:portfolio": "npx tsx examples/portfolio.ts",
+    "example:entropy": "npx tsx examples/entropy.ts",
+    "example:power": "npx tsx examples/power.ts",
     "test:browser": "npx serve -l 3000 .",
-    "prepublishOnly": "npm run build:wasm && npm run build && npm run test:run"
+    "prepublishOnly": "npm run build && npm run test:run"
   },
   "dependencies": {
     "clarabel-wasm": "file:./wasm/pkg/bundler",

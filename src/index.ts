@@ -71,6 +71,7 @@ export {
   trace,
   diag,
   dot,
+  cumsum,
 } from './atoms/index.js';
 
 // === Nonlinear Atoms ===
@@ -81,11 +82,17 @@ export {
   norm,
   abs,
   pos,
+  negPart,
   maximum,
   minimum,
   sumSquares,
   quadForm,
   quadOverLin,
+  exp,
+  log,
+  entropy,
+  sqrt,
+  power,
 } from './atoms/index.js';
 
 // === DCP Analysis ===

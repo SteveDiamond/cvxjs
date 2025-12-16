@@ -275,6 +275,23 @@ export function diag(arg: Expr): Expr {
 }
 
 /**
+ * Cumulative sum of elements.
+ *
+ * For a vector [x1, x2, x3], returns [x1, x1+x2, x1+x2+x3].
+ * For a matrix, sums along the specified axis (0 for columns, 1 for rows).
+ *
+ * @example
+ * ```ts
+ * const cs = cumsum(x);        // Cumulative sum of vector
+ * const cs = cumsum(A, 0);     // Cumulative sum along columns
+ * const cs = cumsum(A, 1);     // Cumulative sum along rows
+ * ```
+ */
+export function cumsum(arg: Expr, axis?: number): Expr {
+  return { kind: 'cumsum', arg, axis };
+}
+
+/**
  * Dot product of two vectors.
  *
  * @example

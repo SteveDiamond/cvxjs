@@ -77,6 +77,7 @@ export type Expr =
   | { readonly kind: 'transpose'; readonly arg: Expr }
   | { readonly kind: 'trace'; readonly arg: Expr }
   | { readonly kind: 'diag'; readonly arg: Expr }
+  | { readonly kind: 'cumsum'; readonly arg: Expr; readonly axis?: number }
 
   // === Nonlinear convex atoms ===
   | { readonly kind: 'norm1'; readonly arg: Expr }
@@ -84,14 +85,19 @@ export type Expr =
   | { readonly kind: 'normInf'; readonly arg: Expr }
   | { readonly kind: 'abs'; readonly arg: Expr }
   | { readonly kind: 'pos'; readonly arg: Expr } // max(x, 0)
-  | { readonly kind: 'neg'; readonly arg: Expr } // max(-x, 0), reusing 'neg' kind with context
+  | { readonly kind: 'negPart'; readonly arg: Expr } // max(-x, 0) - negative part
   | { readonly kind: 'maximum'; readonly args: readonly Expr[] }
   | { readonly kind: 'sumSquares'; readonly arg: Expr }
   | { readonly kind: 'quadForm'; readonly x: Expr; readonly P: Expr }
   | { readonly kind: 'quadOverLin'; readonly x: Expr; readonly y: Expr }
+  | { readonly kind: 'exp'; readonly arg: Expr } // e^x, convex
 
   // === Nonlinear concave atoms ===
-  | { readonly kind: 'minimum'; readonly args: readonly Expr[] };
+  | { readonly kind: 'minimum'; readonly args: readonly Expr[] }
+  | { readonly kind: 'log'; readonly arg: Expr } // log(x), concave
+  | { readonly kind: 'entropy'; readonly arg: Expr } // -x*log(x), concave
+  | { readonly kind: 'sqrt'; readonly arg: Expr } // sqrt(x), concave
+  | { readonly kind: 'power'; readonly arg: Expr; readonly p: number }; // x^p, curvature depends on p
 
 /**
  * Get the shape of an expression.
@@ -111,6 +117,12 @@ export function exprShape(expr: Expr): Shape {
     case 'neg':
     case 'abs':
     case 'pos':
+    case 'negPart':
+    case 'exp':
+    case 'log':
+    case 'entropy':
+    case 'sqrt':
+    case 'power':
       return exprShape(expr.arg);
 
     case 'div':
@@ -209,6 +221,10 @@ export function exprShape(expr: Expr): Shape {
       return { dims: [n] };
     }
 
+    case 'cumsum':
+      // Cumulative sum preserves shape
+      return exprShape(expr.arg);
+
     case 'maximum':
     case 'minimum':
       // Element-wise maximum/minimum preserves shape
@@ -259,12 +275,19 @@ function collectVariables(expr: Expr, vars: Set<ExprId>): void {
     case 'transpose':
     case 'trace':
     case 'diag':
+    case 'cumsum':
     case 'norm1':
     case 'norm2':
     case 'normInf':
     case 'abs':
     case 'pos':
+    case 'negPart':
     case 'sumSquares':
+    case 'exp':
+    case 'log':
+    case 'entropy':
+    case 'sqrt':
+    case 'power':
       collectVariables(expr.arg, vars);
       break;
 

@@ -17,6 +17,7 @@ interface WasmSolveResult {
   status: string;
   obj_val: number | null;
   x: number[] | null;
+  z: number[] | null; // Dual variables
   solve_time: number;
   iterations: number;
 }
@@ -149,6 +150,7 @@ export interface ConicSolveResult {
   status: SolveStatus;
   objVal: number | null;
   x: Float64Array | null;
+  z: Float64Array | null; // Dual variables
   solveTime: number;
   iterations: number;
 }
@@ -239,6 +241,7 @@ export async function solveConic(
     status: parseStatus(result.status),
     objVal: result.obj_val,
     x: result.x ? new Float64Array(result.x) : null,
+    z: result.z ? new Float64Array(result.z) : null,
     solveTime: result.solve_time,
     iterations: result.iterations,
   };

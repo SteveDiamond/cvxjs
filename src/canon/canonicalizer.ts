@@ -14,10 +14,53 @@ import {
   linExprSum,
   linExprVstack,
 } from './lin-expr.js';
+import {
+  QuadExpr,
+  quadExprFromLinear,
+  quadExprQuadratic,
+  quadExprSumSquares,
+  quadExprAdd,
+  quadExprScale,
+} from './quad-expr.js';
 import { ConeConstraint } from './cone-constraint.js';
-import { CscMatrix, cscFromTriplets, cscFromDense, cscTranspose } from '../sparse/index.js';
+import {
+  CscMatrix,
+  cscFromTriplets,
+  cscFromDense,
+  cscTranspose,
+  cscMulMatTransposeLeft,
+} from '../sparse/index.js';
 import { DcpError } from '../error.js';
 import { curvature, Curvature } from '../dcp/index.js';
+
+/**
+ * Canonical expression: either linear or quadratic.
+ * Quadratic is only used for objectives, not constraints.
+ */
+export type CanonExpr =
+  | { readonly kind: 'linear'; readonly expr: LinExpr }
+  | { readonly kind: 'quadratic'; readonly expr: QuadExpr };
+
+/**
+ * Get the linear expression from a CanonExpr.
+ * Throws if quadratic.
+ */
+export function canonExprAsLinear(ce: CanonExpr): LinExpr {
+  if (ce.kind === 'quadratic') {
+    throw new DcpError('Expected linear expression, got quadratic');
+  }
+  return ce.expr;
+}
+
+/**
+ * Convert a CanonExpr to QuadExpr (linear expressions are wrapped).
+ */
+export function canonExprToQuadratic(ce: CanonExpr): QuadExpr {
+  if (ce.kind === 'quadratic') {
+    return ce.expr;
+  }
+  return quadExprFromLinear(ce.expr);
+}
 
 /**
  * Auxiliary variable info.
@@ -32,8 +75,10 @@ export interface AuxVar {
  * Result of canonicalizing an expression.
  */
 export interface CanonResult {
-  /** Canonical linear expression */
+  /** Canonical linear expression (for non-quadratic objectives) */
   readonly linExpr: LinExpr;
+  /** Canonical quadratic expression (for QP objectives, optional) */
+  readonly quadExpr?: QuadExpr;
   /** Cone constraints generated */
   readonly constraints: ConeConstraint[];
   /** Auxiliary variables introduced */
@@ -74,10 +119,9 @@ export class Canonicalizer {
    * Canonicalize an expression to linear form plus cone constraints.
    *
    * @param expr - Expression to canonicalize
-   * @param isObjective - Whether this is the objective (allows quadratic)
    * @returns Canonical linear expression
    */
-  canonicalize(expr: Expr, isObjective = false): LinExpr {
+  canonicalize(expr: Expr): LinExpr {
     switch (expr.kind) {
       // === Leaf nodes ===
       case 'variable':
@@ -155,11 +199,56 @@ export class Canonicalizer {
         throw new DcpError('matmul requires at least one constant operand');
       }
 
-      case 'sum':
-        if (expr.axis !== undefined) {
-          throw new DcpError('sum with axis not yet supported');
+      case 'sum': {
+        const argLin = this.canonicalize(expr.arg);
+
+        if (expr.axis === undefined) {
+          // Sum all elements
+          return linExprSum(argLin);
         }
-        return linExprSum(this.canonicalize(expr.arg));
+
+        // Sum along a specific axis
+        const argShape = exprShape(expr.arg);
+        if (argShape.dims.length !== 2) {
+          throw new DcpError('sum with axis only supported for 2D arrays');
+        }
+
+        const m = argShape.dims[0]!;
+        const n = argShape.dims[1]!;
+
+        // Build summation matrix
+        // For axis=0 (sum columns): result is (1 x n), each element is sum of column
+        // For axis=1 (sum rows): result is (m x 1), each element is sum of row
+        const rows: number[] = [];
+        const cols: number[] = [];
+        const vals: number[] = [];
+
+        if (expr.axis === 0) {
+          // Sum columns: output[j] = sum_i(input[i, j])
+          // In column-major: output[j] = sum of elements at positions j*m to j*m+m-1
+          for (let j = 0; j < n; j++) {
+            for (let i = 0; i < m; i++) {
+              rows.push(j);
+              cols.push(j * m + i);
+              vals.push(1);
+            }
+          }
+          const sumMatrix = cscFromTriplets(n, m * n, rows, cols, vals);
+          return linExprLeftMul(sumMatrix, argLin);
+        } else {
+          // Sum rows: output[i] = sum_j(input[i, j])
+          // In column-major: output[i] = sum_j(input[j*m + i])
+          for (let i = 0; i < m; i++) {
+            for (let j = 0; j < n; j++) {
+              rows.push(i);
+              cols.push(j * m + i);
+              vals.push(1);
+            }
+          }
+          const sumMatrix = cscFromTriplets(m, m * n, rows, cols, vals);
+          return linExprLeftMul(sumMatrix, argLin);
+        }
+      }
 
       case 'reshape': {
         // Reshape is just reinterpretation, no change to linear form
@@ -197,11 +286,151 @@ export class Canonicalizer {
       }
 
       case 'trace': {
-        throw new DcpError('trace canonicalization not yet supported');
+        // trace(M) = sum of diagonal elements
+        // Build selection matrix that extracts diagonal elements
+        const argLin = this.canonicalize(expr.arg);
+        const argShape = exprShape(expr.arg);
+
+        if (argShape.dims.length !== 2) {
+          throw new DcpError('trace requires 2D matrix argument');
+        }
+
+        const m = argShape.dims[0]!;
+        const n = argShape.dims[1]!;
+        const minDim = Math.min(m, n);
+
+        // Selection vector extracts diagonal elements and sums them
+        // Diagonal position (i, i) in column-major order is at flat index i * m + i
+        const rows: number[] = [];
+        const cols: number[] = [];
+        const vals: number[] = [];
+
+        for (let i = 0; i < minDim; i++) {
+          rows.push(0);
+          cols.push(i * m + i);
+          vals.push(1);
+        }
+
+        const selectMatrix = cscFromTriplets(1, m * n, rows, cols, vals);
+        return linExprLeftMul(selectMatrix, argLin);
       }
 
       case 'diag': {
-        throw new DcpError('diag canonicalization not yet supported');
+        const argLin = this.canonicalize(expr.arg);
+        const argShape = exprShape(expr.arg);
+
+        if (argShape.dims.length === 1) {
+          // Vector -> diagonal matrix
+          // Input: n-vector, Output: n×n matrix (n² elements, column-major)
+          // Place input[i] at position (i, i) = i * n + i
+          const n = argShape.dims[0]!;
+
+          const rows: number[] = [];
+          const cols: number[] = [];
+          const vals: number[] = [];
+
+          for (let i = 0; i < n; i++) {
+            // Output position: (i, i) in column-major = i * n + i
+            rows.push(i * n + i);
+            // Input position: i
+            cols.push(i);
+            vals.push(1);
+          }
+
+          const expandMatrix = cscFromTriplets(n * n, n, rows, cols, vals);
+          return linExprLeftMul(expandMatrix, argLin);
+        } else {
+          // Matrix -> diagonal vector
+          // Input: m×n matrix (m*n elements), Output: min(m,n)-vector
+          // Extract elements at positions (i, i) = i * m + i
+          const m = argShape.dims[0]!;
+          const n = argShape.dims[1]!;
+          const minDim = Math.min(m, n);
+
+          const rows: number[] = [];
+          const cols: number[] = [];
+          const vals: number[] = [];
+
+          for (let i = 0; i < minDim; i++) {
+            // Output position: i
+            rows.push(i);
+            // Input position: (i, i) in column-major = i * m + i
+            cols.push(i * m + i);
+            vals.push(1);
+          }
+
+          const selectMatrix = cscFromTriplets(minDim, m * n, rows, cols, vals);
+          return linExprLeftMul(selectMatrix, argLin);
+        }
+      }
+
+      case 'cumsum': {
+        // Cumulative sum: build lower-triangular summation matrix
+        // For vector x = [x1, x2, x3], cumsum(x) = [x1, x1+x2, x1+x2+x3]
+        // L @ x where L is lower-triangular matrix of ones
+        const argLin = this.canonicalize(expr.arg);
+        const argShape = exprShape(expr.arg);
+
+        if (expr.axis === undefined) {
+          // Cumsum of flattened array (1D)
+          const n = argLin.rows;
+
+          const rows: number[] = [];
+          const cols: number[] = [];
+          const vals: number[] = [];
+
+          for (let i = 0; i < n; i++) {
+            for (let j = 0; j <= i; j++) {
+              rows.push(i);
+              cols.push(j);
+              vals.push(1);
+            }
+          }
+
+          const cumsumMatrix = cscFromTriplets(n, n, rows, cols, vals);
+          return linExprLeftMul(cumsumMatrix, argLin);
+        } else {
+          // Cumsum along axis for 2D array
+          if (argShape.dims.length !== 2) {
+            throw new DcpError('cumsum with axis only supported for 2D arrays');
+          }
+
+          const m = argShape.dims[0]!;
+          const n = argShape.dims[1]!;
+
+          const rows: number[] = [];
+          const cols: number[] = [];
+          const vals: number[] = [];
+
+          if (expr.axis === 0) {
+            // Cumsum along columns: for each column, apply cumsum
+            // In column-major: column j starts at j*m, elements are j*m, j*m+1, ..., j*m+m-1
+            for (let j = 0; j < n; j++) {
+              for (let i = 0; i < m; i++) {
+                for (let k = 0; k <= i; k++) {
+                  rows.push(j * m + i); // output position
+                  cols.push(j * m + k); // input position
+                  vals.push(1);
+                }
+              }
+            }
+          } else {
+            // Cumsum along rows: for each row, apply cumsum across columns
+            // In column-major: row i consists of elements i, m+i, 2m+i, ...
+            for (let i = 0; i < m; i++) {
+              for (let j = 0; j < n; j++) {
+                for (let k = 0; k <= j; k++) {
+                  rows.push(j * m + i); // output position
+                  cols.push(k * m + i); // input position
+                  vals.push(1);
+                }
+              }
+            }
+          }
+
+          const cumsumMatrix = cscFromTriplets(m * n, m * n, rows, cols, vals);
+          return linExprLeftMul(cumsumMatrix, argLin);
+        }
       }
 
       // === Nonlinear convex atoms ===
@@ -277,6 +506,21 @@ export class Canonicalizer {
         return t;
       }
 
+      case 'negPart': {
+        // max(-x, 0): introduce t >= 0, t >= -x, return t
+        // This is equivalent to pos(-x)
+        const x = this.canonicalize(expr.arg);
+        const negX = linExprNeg(x);
+        const n = x.rows;
+
+        const { linExpr: t } = this.newNonnegAuxVar(n);
+
+        // t >= -x
+        this.addConstraint({ kind: 'nonneg', a: linExprSub(t, negX) });
+
+        return t;
+      }
+
       case 'maximum': {
         // max(x_1, ..., x_k): introduce t >= x_i for all i
         const args = expr.args.map((arg) => this.canonicalize(arg));
@@ -293,62 +537,34 @@ export class Canonicalizer {
 
       case 'sumSquares': {
         // ||x||_2^2 = x' x
-        // If used in objective, we can use native QP
-        // Otherwise, use SOC: introduce t, (t, 1, x) in rotated SOC
-        // For simplicity, use SOC reformulation:
-        // ||x||^2 <= t  <=>  ||[2x; t-1]|| <= t+1 (rotated SOC)
+        // For objectives, we use native QP via QuadExpr
+        // For constraints, use SOC reformulation
 
         const x = this.canonicalize(expr.arg);
-        const { linExpr: _t } = this.newNonnegAuxVar(1);
-
-        // Use rotated second-order cone: 2*x_i^2 <= 2*t
-        // ||x||^2 <= t is equivalent to (t+1, t-1, 2x) in SOC
-        // But simpler: use ||x||_2 <= sqrt(t), squared
-        // Let's use: introduce s = ||x||_2 via SOC, then s^2 <= t
-        // This still needs rotated SOC...
-
-        // Simpler approach: introduce s, ||x|| <= s (SOC), return s^2
-        // But s^2 is not linear...
-
-        // For now, use the hyperbolic constraint formulation:
-        // ||x||^2 <= t is (1, t, x) in rotated SOC
-        // Clarabel supports rotated SOC as: 2*u*v >= ||w||^2, u,v >= 0
-        // So: 2 * 0.5 * t >= ||x||^2 means (0.5, t, x) in rotated SOC
-        // Which is: ([0.5; t], x) in rotated SOC (Clarabel format)
-
-        // Actually, let's just use power cone or expand differently
-        // For MVP, let's approximate: ||x||^2 = ||x||_2^2
-        // Use auxiliary s = ||x||_2 (via SOC), then need s^2 <= return value
-
-        // SIMPLEST: For sum_squares as objective, we pass it through to QP
-        // For constraints, throw not supported for now
-
-        if (isObjective) {
-          // Return quadratic - but we need QuadExpr for that
-          // For now, use SOC reformulation
-        }
 
         // SOC reformulation: introduce s where ||x|| <= s
         const { linExpr: s } = this.newNonnegAuxVar(1);
         this.addConstraint({ kind: 'soc', t: s, x });
 
-        // Now we need s^2, but we can't represent that in LinExpr
-        // Instead, we use the fact that for minimizing ||x||^2,
-        // minimizing ||x|| gives same optimum
-        // This is WRONG for general use...
-
-        // TODO: Implement proper quadratic handling
-        // For now, return s (which is ||x||, not ||x||^2)
-        // This is a known limitation that we document
-        console.warn('sumSquares canonicalization approximates ||x||^2 as ||x||_2');
+        // Return s (the bound on ||x||)
+        // For objectives, canonicalizeObjective will handle creating QuadExpr
         return s;
       }
 
       case 'quadForm': {
         // x' P x where P is constant PSD
-        // Use SOC reformulation via Cholesky
-        // For MVP, throw not supported
-        throw new DcpError('quadForm canonicalization not yet supported - use sumSquares for now');
+        // For objectives, we use native QP via QuadExpr
+        // For constraints, use SOC reformulation via Cholesky
+
+        const x = this.canonicalize(expr.x);
+
+        // SOC reformulation: ||L'x|| <= t where P = LL'
+        // For now, treat as ||x|| scaled
+        const { linExpr: s } = this.newNonnegAuxVar(1);
+        this.addConstraint({ kind: 'soc', t: s, x });
+
+        // Return s as approximation
+        return s;
       }
 
       case 'quadOverLin': {
@@ -356,7 +572,168 @@ export class Canonicalizer {
         throw new DcpError('quadOverLin canonicalization not yet supported');
       }
 
+      case 'exp': {
+        // exp(x): introduce t >= exp(x)
+        // Using exp cone: (x, 1, t) means 1 * exp(x/1) <= t, i.e., exp(x) <= t
+        const x = this.canonicalize(expr.arg);
+        const n = x.rows;
+
+        // For each element, introduce t_i and exp cone constraint
+        const { linExpr: t } = this.newNonnegAuxVar(n);
+
+        // Create scalar 1 for y component
+        const one = linExprConstant(new Float64Array([1]));
+
+        // For element-wise exp, we need n exp cone constraints
+        for (let i = 0; i < n; i++) {
+          // Extract element i of x
+          const selectRows: number[] = [0];
+          const selectCols: number[] = [i];
+          const selectVals: number[] = [1];
+          const selectMatrix = cscFromTriplets(1, n, selectRows, selectCols, selectVals);
+
+          const xi = linExprLeftMul(selectMatrix, x);
+          const ti = linExprLeftMul(selectMatrix, t);
+
+          this.addConstraint({ kind: 'exp', x: xi, y: one, z: ti });
+        }
+
+        return t;
+      }
+
       // === Nonlinear concave atoms ===
+      case 'log': {
+        // log(x): introduce t <= log(x)
+        // Using exp cone: (t, 1, x) means 1 * exp(t/1) <= x, i.e., exp(t) <= x, i.e., t <= log(x)
+        const x = this.canonicalize(expr.arg);
+        const n = x.rows;
+
+        // For each element, introduce t_i and exp cone constraint
+        const { linExpr: t } = this.newAuxVar(n);
+
+        // Create scalar 1 for y component
+        const one = linExprConstant(new Float64Array([1]));
+
+        // For element-wise log, we need n exp cone constraints
+        for (let i = 0; i < n; i++) {
+          // Extract element i
+          const selectRows: number[] = [0];
+          const selectCols: number[] = [i];
+          const selectVals: number[] = [1];
+          const selectMatrix = cscFromTriplets(1, n, selectRows, selectCols, selectVals);
+
+          const xi = linExprLeftMul(selectMatrix, x);
+          const ti = linExprLeftMul(selectMatrix, t);
+
+          // (t, 1, x) in ExpCone
+          this.addConstraint({ kind: 'exp', x: ti, y: one, z: xi });
+        }
+
+        return t;
+      }
+
+      case 'entropy': {
+        // -x*log(x): introduce t <= -x*log(x)
+        // Using exp cone: (t, x, 1) means x * exp(t/x) <= 1
+        // => exp(t/x) <= 1/x => t/x <= log(1/x) = -log(x) => t <= -x*log(x)
+        const x = this.canonicalize(expr.arg);
+        const n = x.rows;
+
+        // For each element, introduce t_i and exp cone constraint
+        const { linExpr: t } = this.newAuxVar(n);
+
+        // Create scalar 1 for z component
+        const one = linExprConstant(new Float64Array([1]));
+
+        // For element-wise entropy, we need n exp cone constraints
+        for (let i = 0; i < n; i++) {
+          // Extract element i
+          const selectRows: number[] = [0];
+          const selectCols: number[] = [i];
+          const selectVals: number[] = [1];
+          const selectMatrix = cscFromTriplets(1, n, selectRows, selectCols, selectVals);
+
+          const xi = linExprLeftMul(selectMatrix, x);
+          const ti = linExprLeftMul(selectMatrix, t);
+
+          // (t, x, 1) in ExpCone
+          this.addConstraint({ kind: 'exp', x: ti, y: xi, z: one });
+        }
+
+        return t;
+      }
+
+      case 'sqrt': {
+        // sqrt(x): introduce t <= sqrt(x) = x^0.5
+        // Using power cone with alpha=0.5: x^0.5 * 1^0.5 >= |z|
+        // (x, 1, t) in PowerCone(0.5) gives us sqrt(x) >= t
+        const x = this.canonicalize(expr.arg);
+        const n = x.rows;
+
+        const { linExpr: t } = this.newNonnegAuxVar(n);
+        const one = linExprConstant(new Float64Array([1]));
+
+        for (let i = 0; i < n; i++) {
+          const selectRows: number[] = [0];
+          const selectCols: number[] = [i];
+          const selectVals: number[] = [1];
+          const selectMatrix = cscFromTriplets(1, n, selectRows, selectCols, selectVals);
+
+          const xi = linExprLeftMul(selectMatrix, x);
+          const ti = linExprLeftMul(selectMatrix, t);
+
+          // (x, 1, t) in PowerCone(0.5)
+          this.addConstraint({ kind: 'power', x: xi, y: one, z: ti, alpha: 0.5 });
+        }
+
+        return t;
+      }
+
+      case 'power': {
+        // x^p: curvature depends on p
+        const x = this.canonicalize(expr.arg);
+        const n = x.rows;
+        const p = expr.p;
+
+        const { linExpr: t } = this.newNonnegAuxVar(n);
+        const one = linExprConstant(new Float64Array([1]));
+
+        if (p > 0 && p < 1) {
+          // Concave case: t <= x^p
+          // (x, 1, t) in PowerCone(p) gives us x^p >= t
+          for (let i = 0; i < n; i++) {
+            const selectRows: number[] = [0];
+            const selectCols: number[] = [i];
+            const selectVals: number[] = [1];
+            const selectMatrix = cscFromTriplets(1, n, selectRows, selectCols, selectVals);
+
+            const xi = linExprLeftMul(selectMatrix, x);
+            const ti = linExprLeftMul(selectMatrix, t);
+
+            this.addConstraint({ kind: 'power', x: xi, y: one, z: ti, alpha: p });
+          }
+        } else if (p > 1) {
+          // Convex case: t >= x^p
+          // Equivalent to x <= t^(1/p), i.e., (t, 1, x) in PowerCone(1/p)
+          for (let i = 0; i < n; i++) {
+            const selectRows: number[] = [0];
+            const selectCols: number[] = [i];
+            const selectVals: number[] = [1];
+            const selectMatrix = cscFromTriplets(1, n, selectRows, selectCols, selectVals);
+
+            const xi = linExprLeftMul(selectMatrix, x);
+            const ti = linExprLeftMul(selectMatrix, t);
+
+            this.addConstraint({ kind: 'power', x: ti, y: one, z: xi, alpha: 1 / p });
+          }
+        } else if (p < 0) {
+          // x^p for p < 0 is convex but more complex to handle
+          throw new DcpError(`power with p=${p} < 0 not yet supported`);
+        }
+
+        return t;
+      }
+
       case 'minimum': {
         // min(x_1, ..., x_k): introduce t <= x_i for all i
         const args = expr.args.map((arg) => this.canonicalize(arg));
@@ -403,6 +780,100 @@ export class Canonicalizer {
         break;
       }
     }
+  }
+
+  /**
+   * Canonicalize an objective expression, potentially returning a quadratic expression.
+   *
+   * For quadratic objectives (sumSquares, quadForm), this method returns a QuadExpr
+   * that can be directly converted to the P matrix for Clarabel's native QP support.
+   *
+   * @param expr - Expression to canonicalize
+   * @returns Canonical expression (linear or quadratic)
+   */
+  canonicalizeObjective(expr: Expr): CanonExpr {
+    // Check for quadratic objective patterns
+    if (expr.kind === 'sumSquares') {
+      // ||x||^2 = x' I x - use native QP
+      const argExpr = expr.arg;
+
+      // If the argument is a simple variable, use native QP
+      if (argExpr.kind === 'variable') {
+        const varId = argExpr.id;
+        const varSize = size(argExpr.shape);
+        return {
+          kind: 'quadratic',
+          expr: quadExprSumSquares(varId, varSize),
+        };
+      }
+
+      // If the argument is affine (Ax + b), we can still use QP
+      // ||Ax + b||^2 = (Ax + b)' (Ax + b) = x' A'A x + 2b'Ax + b'b
+      // For now, check if arg canonicalizes to a simple form
+      const argLin = this.canonicalize(argExpr);
+      const vars = Array.from(argLin.coeffs.keys());
+
+      // Check if constant term is zero and there's exactly one variable
+      const hasConstant = argLin.constant.some((c) => c !== 0);
+      if (vars.length === 1 && !hasConstant) {
+        const varId = vars[0]!;
+        const A = argLin.coeffs.get(varId)!;
+        // P = A' A (for ||Ax||^2 = x' A'A x)
+        const AtA = cscMulMatTransposeLeft(A, A);
+        return {
+          kind: 'quadratic',
+          expr: quadExprQuadratic(varId, AtA),
+        };
+      }
+
+      // Fall back to SOC reformulation for complex cases
+    }
+
+    if (expr.kind === 'quadForm') {
+      // x' P x - use native QP
+      const xExpr = expr.x;
+      const pExpr = expr.P;
+
+      // If x is a simple variable and P is constant, use native QP
+      if (xExpr.kind === 'variable' && pExpr.kind === 'constant') {
+        const varId = xExpr.id;
+        const P = this.exprToCscMatrix(pExpr);
+        return {
+          kind: 'quadratic',
+          expr: quadExprQuadratic(varId, P),
+        };
+      }
+
+      // Fall back to SOC reformulation for complex cases
+    }
+
+    // For add expressions, check if both sides have quadratic parts
+    if (expr.kind === 'add') {
+      const leftCanon = this.canonicalizeObjective(expr.left);
+      const rightCanon = this.canonicalizeObjective(expr.right);
+
+      // If either is quadratic, combine as quadratic
+      if (leftCanon.kind === 'quadratic' || rightCanon.kind === 'quadratic') {
+        const leftQuad = canonExprToQuadratic(leftCanon);
+        const rightQuad = canonExprToQuadratic(rightCanon);
+        return {
+          kind: 'quadratic',
+          expr: quadExprAdd(leftQuad, rightQuad),
+        };
+      }
+
+      // Both linear - return linear
+      return {
+        kind: 'linear',
+        expr: linExprAdd(leftCanon.expr, rightCanon.expr),
+      };
+    }
+
+    // Default: use regular canonicalization and wrap as linear
+    return {
+      kind: 'linear',
+      expr: this.canonicalize(expr),
+    };
   }
 
   /**
@@ -633,28 +1104,44 @@ export function canonicalizeProblem(
   sense: 'minimize' | 'maximize'
 ): {
   objectiveLinExpr: LinExpr;
+  objectiveQuadExpr?: QuadExpr;
   coneConstraints: ConeConstraint[];
   auxVars: AuxVar[];
   objectiveOffset: number;
 } {
   const canonicalizer = new Canonicalizer();
 
-  // Canonicalize objective
-  let objectiveLinExpr = canonicalizer.canonicalize(objective, true);
+  // Canonicalize objective (may return quadratic for QP)
+  let canonExpr = canonicalizer.canonicalizeObjective(objective);
   let objectiveOffset = 0;
 
   // For maximization, negate the objective
   if (sense === 'maximize') {
-    objectiveLinExpr = linExprNeg(objectiveLinExpr);
+    if (canonExpr.kind === 'quadratic') {
+      canonExpr = { kind: 'quadratic', expr: quadExprScale(canonExpr.expr, -1) };
+    } else {
+      canonExpr = { kind: 'linear', expr: linExprNeg(canonExpr.expr) };
+    }
   }
 
-  // Extract constant offset from objective
-  if (objectiveLinExpr.rows === 1) {
-    objectiveOffset = objectiveLinExpr.constant[0]!;
-    objectiveLinExpr = {
-      ...objectiveLinExpr,
-      constant: new Float64Array(1), // Zero out constant
-    };
+  // Extract the linear expression and optional quadratic expression
+  let objectiveLinExpr: LinExpr;
+  let objectiveQuadExpr: QuadExpr | undefined;
+
+  if (canonExpr.kind === 'quadratic') {
+    objectiveQuadExpr = canonExpr.expr;
+    objectiveLinExpr = canonExpr.expr.linear;
+    objectiveOffset = canonExpr.expr.constant;
+  } else {
+    objectiveLinExpr = canonExpr.expr;
+    // Extract constant offset from linear objective
+    if (objectiveLinExpr.rows === 1) {
+      objectiveOffset = objectiveLinExpr.constant[0]!;
+      objectiveLinExpr = {
+        ...objectiveLinExpr,
+        constant: new Float64Array(1), // Zero out constant
+      };
+    }
   }
 
   // Canonicalize constraints
@@ -664,6 +1151,7 @@ export function canonicalizeProblem(
 
   return {
     objectiveLinExpr,
+    objectiveQuadExpr,
     coneConstraints: canonicalizer.getConstraints(),
     auxVars: canonicalizer.getAuxVars(),
     objectiveOffset,

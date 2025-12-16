@@ -15,6 +15,7 @@ export {
   trace,
   diag,
   dot,
+  cumsum,
   toExpr,
 } from './affine.js';
 
@@ -26,9 +27,15 @@ export {
   norm,
   abs,
   pos,
+  negPart,
   maximum,
   minimum,
   sumSquares,
   quadForm,
   quadOverLin,
+  exp,
+  log,
+  entropy,
+  sqrt,
+  power,
 } from './nonlinear.js';

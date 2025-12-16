@@ -38,6 +38,8 @@ export interface Solution {
   readonly value?: number;
   /** Primal variable values (if optimal) */
   readonly primal?: ReadonlyMap<ExprId, Float64Array>;
+  /** Dual variable values (if optimal) - raw dual vector from solver */
+  readonly dual?: Float64Array;
   /** Solve time in seconds */
   readonly solveTime?: number;
   /** Number of iterations */
@@ -255,18 +257,21 @@ export class Problem {
       this.collectVariableSizesFromConstraint(c, varSizes);
     }
 
-    // Canonicalize the problem
-    const { objectiveLinExpr, coneConstraints, auxVars, objectiveOffset } = canonicalizeProblem(
-      this._objective,
-      this._constraints,
-      this._sense
-    );
+    // Canonicalize the problem (may produce quadratic objective for QP)
+    const { objectiveLinExpr, objectiveQuadExpr, coneConstraints, auxVars, objectiveOffset } =
+      canonicalizeProblem(this._objective, this._constraints, this._sense);
 
     // Build variable mapping
     const varMap = buildVariableMap(varIds, varSizes, auxVars);
 
-    // Stuff the problem into standard form
-    const stuffed = stuffProblem(objectiveLinExpr, coneConstraints, varMap, objectiveOffset);
+    // Stuff the problem into standard form (with optional quadratic objective)
+    const stuffed = stuffProblem(
+      objectiveLinExpr,
+      coneConstraints,
+      varMap,
+      objectiveOffset,
+      objectiveQuadExpr
+    );
 
     // Call the solver
     const result = await solveConic(
@@ -321,6 +326,7 @@ export class Problem {
       status: result.status,
       value,
       primal,
+      dual: result.z ?? undefined,
       solveTime: result.solveTime,
       iterations: result.iterations,
     };
@@ -352,12 +358,19 @@ export class Problem {
       case 'transpose':
       case 'trace':
       case 'diag':
+      case 'cumsum':
       case 'norm1':
       case 'norm2':
       case 'normInf':
       case 'abs':
       case 'pos':
+      case 'negPart':
       case 'sumSquares':
+      case 'exp':
+      case 'log':
+      case 'entropy':
+      case 'sqrt':
+      case 'power':
         this.collectVariableSizes(expr.arg, sizes);
         break;
       case 'index':

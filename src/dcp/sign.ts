@@ -134,6 +134,7 @@ export function sign(expr: Expr): Sign {
 
     case 'sum':
     case 'trace':
+    case 'cumsum':
       return sign(expr.arg);
 
     case 'reshape':
@@ -159,10 +160,35 @@ export function sign(expr: Expr): Sign {
     case 'sumSquares':
     case 'quadForm':
     case 'quadOverLin':
+    case 'exp': // e^x > 0 always
       return Sign.Nonnegative;
+
+    case 'log':
+      // log(x) can be any sign (log(x) < 0 for x < 1, log(x) > 0 for x > 1)
+      return Sign.Unknown;
+
+    case 'entropy':
+      // -x*log(x) is nonnegative for 0 < x <= 1, nonpositive for x > 1
+      return Sign.Unknown;
+
+    case 'sqrt':
+      // sqrt(x) >= 0 for x >= 0
+      return Sign.Nonnegative;
+
+    case 'power': {
+      // x^p for x >= 0 is nonnegative for any p
+      const argSign = sign(expr.arg);
+      if (isNonnegative(argSign)) {
+        return Sign.Nonnegative;
+      }
+      return Sign.Unknown;
+    }
 
     case 'pos':
       return Sign.Nonnegative; // max(x, 0) >= 0
+
+    case 'negPart':
+      return Sign.Nonnegative; // max(-x, 0) >= 0
 
     case 'maximum': {
       // max is nonnegative if any argument is nonnegative

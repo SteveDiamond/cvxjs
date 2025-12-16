@@ -153,6 +153,7 @@ export function curvature(expr: Expr): Curvature {
     case 'transpose':
     case 'trace':
     case 'diag':
+    case 'cumsum':
       // These affine operations preserve curvature
       return curvature(expr.arg);
 
@@ -188,6 +189,19 @@ export function curvature(expr: Expr): Curvature {
       }
       if (argCurv === Curvature.Convex) {
         return Curvature.Convex; // Convex of convex is convex
+      }
+      return Curvature.Unknown;
+    }
+
+    case 'negPart': {
+      // negPart(x) = max(-x, 0) is convex
+      // DCP: argument must be affine or concave (since we negate it)
+      const argCurv = curvature(expr.arg);
+      if (isAffine(argCurv)) {
+        return Curvature.Convex;
+      }
+      if (argCurv === Curvature.Concave) {
+        return Curvature.Convex; // Convex of (negate of concave) = convex of convex
       }
       return Curvature.Unknown;
     }
@@ -243,7 +257,93 @@ export function curvature(expr: Expr): Curvature {
       return Curvature.Unknown;
     }
 
+    case 'exp': {
+      // exp(x) is convex
+      // DCP: argument must be affine or convex (convex of convex is convex)
+      const argCurv = curvature(expr.arg);
+      if (isAffine(argCurv)) {
+        return Curvature.Convex;
+      }
+      if (argCurv === Curvature.Convex) {
+        // exp is increasing and convex, so exp(convex) is convex
+        return Curvature.Convex;
+      }
+      return Curvature.Unknown;
+    }
+
     // === Nonlinear concave atoms ===
+    case 'log': {
+      // log(x) is concave
+      // DCP: argument must be affine or concave (concave of concave is concave)
+      const argCurv = curvature(expr.arg);
+      if (isAffine(argCurv)) {
+        return Curvature.Concave;
+      }
+      if (argCurv === Curvature.Concave) {
+        // log is increasing and concave, so log(concave) is concave
+        return Curvature.Concave;
+      }
+      return Curvature.Unknown;
+    }
+
+    case 'entropy': {
+      // -x*log(x) is concave
+      // DCP: argument must be affine
+      const argCurv = curvature(expr.arg);
+      if (isAffine(argCurv)) {
+        return Curvature.Concave;
+      }
+      return Curvature.Unknown;
+    }
+
+    case 'sqrt': {
+      // sqrt(x) is concave
+      // DCP: argument must be affine or concave
+      const argCurv = curvature(expr.arg);
+      if (isAffine(argCurv)) {
+        return Curvature.Concave;
+      }
+      if (argCurv === Curvature.Concave) {
+        // sqrt is increasing and concave, so sqrt(concave) is concave
+        return Curvature.Concave;
+      }
+      return Curvature.Unknown;
+    }
+
+    case 'power': {
+      // x^p curvature depends on p:
+      // p >= 1 or p < 0: Convex
+      // 0 < p < 1: Concave
+      const argCurv = curvature(expr.arg);
+      const p = expr.p;
+
+      if (p === 0) {
+        return Curvature.Constant; // x^0 = 1
+      }
+
+      if (p >= 1 || p < 0) {
+        // Convex case
+        if (isAffine(argCurv)) {
+          return Curvature.Convex;
+        }
+        if (p >= 1 && argCurv === Curvature.Convex) {
+          // x^p is increasing and convex for p >= 1, so x^p(convex) is convex
+          return Curvature.Convex;
+        }
+        return Curvature.Unknown;
+      } else {
+        // 0 < p < 1: Concave case
+        if (isAffine(argCurv)) {
+          return Curvature.Concave;
+        }
+        if (argCurv === Curvature.Concave) {
+          // x^p is increasing and concave for 0 < p < 1, so x^p(concave) is concave
+          return Curvature.Concave;
+        }
+        return Curvature.Unknown;
+      }
+    }
+
     case 'minimum': {
       // minimum is concave: min of concave functions is concave
       // DCP: all arguments must be concave (or affine)

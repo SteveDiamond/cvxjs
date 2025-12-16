@@ -85,6 +85,21 @@ export function pos(arg: Expr): Expr {
 }
 
 /**
+ * Negative part: max(-x, 0).
+ *
+ * This is the element-wise function neg(x) = max(-x, 0),
+ * which extracts the negative portion of x.
+ *
+ * @example
+ * ```ts
+ * const y = negPart(x);  // max(-x, 0)
+ * ```
+ */
+export function negPart(arg: Expr): Expr {
+  return { kind: 'negPart', arg };
+}
+
+/**
  * Element-wise maximum of expressions.
  *
  * @example
@@ -180,4 +195,88 @@ export function quadForm(x: Expr, P: Expr): Expr {
  */
 export function quadOverLin(x: Expr, y: Expr): Expr {
   return { kind: 'quadOverLin', x, y };
+}
+
+/**
+ * Element-wise exponential: e^x.
+ *
+ * This is a convex function. For DCP compliance, the argument must be affine.
+ *
+ * @example
+ * ```ts
+ * const y = exp(x);  // e^x
+ * ```
+ */
+export function exp(arg: Expr): Expr {
+  return { kind: 'exp', arg };
+}
+
+/**
+ * Element-wise natural logarithm: log(x).
+ *
+ * This is a concave function. For DCP compliance, the argument must be affine
+ * and positive.
+ *
+ * @example
+ * ```ts
+ * const y = log(x);  // ln(x)
+ * ```
+ */
+export function log(arg: Expr): Expr {
+  return { kind: 'log', arg };
+}
+
+/**
+ * Element-wise entropy: -x * log(x).
+ *
+ * This is a concave function. For DCP compliance, the argument must be affine
+ * and positive.
+ *
+ * @example
+ * ```ts
+ * const y = entropy(x);  // -x * log(x)
+ * ```
+ */
+export function entropy(arg: Expr): Expr {
+  return { kind: 'entropy', arg };
+}
+
+/**
+ * Element-wise square root: sqrt(x).
+ *
+ * This is a concave function. For DCP compliance, the argument must be affine
+ * and nonnegative.
+ *
+ * @example
+ * ```ts
+ * const y = sqrt(x);  // sqrt(x)
+ * ```
+ */
+export function sqrt(arg: Expr): Expr {
+  return { kind: 'sqrt', arg };
+}
+
+/**
+ * Element-wise power: x^p.
+ *
+ * Curvature depends on p:
+ * - p >= 1 or p < 0: Convex (for x >= 0)
+ * - 0 < p < 1: Concave (for x >= 0)
+ *
+ * For DCP compliance, the argument must be affine and nonnegative.
+ *
+ * @example
+ * ```ts
+ * const y = power(x, 0.5);  // x^0.5 = sqrt(x), concave
+ * const y = power(x, 2);    // x^2, convex
+ * const y = power(x, -1);   // x^(-1) = 1/x, convex
+ * ```
+ */
+export function power(arg: Expr, p: number): Expr {
+  // Special case: p = 1 is identity
+  if (p === 1) {
+    return arg;
+  }
+  // Special case: p = 0 is constant 1 (handled during evaluation)
+  return { kind: 'power', arg, p };
 }

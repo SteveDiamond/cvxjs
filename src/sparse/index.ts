@@ -15,6 +15,7 @@ export {
   cscTranspose,
   cscMulVec,
   cscMulMat,
+  cscMulMatTransposeLeft,
   cscDiag,
   cscToDense,
   cscClone,

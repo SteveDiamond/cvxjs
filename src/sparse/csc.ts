@@ -412,6 +412,59 @@ export function cscMulMat(A: CscMatrix, B: CscMatrix): CscMatrix {
 }
 
 /**
+ * Multiply A' * B (transpose of A times B).
+ * More efficient than transposing first: O(nnz(A) * nnz(B))
+ */
+export function cscMulMatTransposeLeft(A: CscMatrix, B: CscMatrix): CscMatrix {
+  if (A.nrows !== B.nrows) {
+    throw new Error(`Cannot multiply A' * B: A has ${A.nrows} rows, B has ${B.nrows} rows`);
+  }
+
+  const rows: number[] = [];
+  const cols: number[] = [];
+  const vals: number[] = [];
+
+  // A' has dimensions (ncols x nrows), result has dimensions (A.ncols x B.ncols)
+  // (A')[i, :] = A[:, i] (the i-th column of A becomes i-th row of A')
+
+  // For each column of B
+  for (let c = 0; c < B.ncols; c++) {
+    // Accumulator for result column (length = A.ncols)
+    const colResult = new Float64Array(A.ncols);
+
+    // For each non-zero in B's column c
+    for (let i = B.colPtr[c]!; i < B.colPtr[c + 1]!; i++) {
+      const bRow = B.rowIdx[i]!; // row in B = row in A (for A' * B)
+      const bVal = B.values[i]!;
+
+      // Find elements in A that share this row index
+      // Need to search all columns of A for row bRow
+      // For each column j of A (which becomes row j of A')
+      for (let j = 0; j < A.ncols; j++) {
+        // Look for row bRow in column j of A
+        for (let k = A.colPtr[j]!; k < A.colPtr[j + 1]!; k++) {
+          if (A.rowIdx[k] === bRow) {
+            // A[bRow, j] exists, contributes A[bRow, j] * B[bRow, c] to result[j, c]
+            colResult[j] = (colResult[j] ?? 0) + A.values[k]! * bVal;
+          }
+        }
+      }
+    }
+
+    // Store non-zeros in result column
+    for (let r = 0; r < A.ncols; r++) {
+      if (colResult[r] !== 0) {
+        rows.push(r);
+        cols.push(c);
+        vals.push(colResult[r]!);
+      }
+    }
+  }
+
+  return cscFromTriplets(A.ncols, B.ncols, rows, cols, vals);
+}
+
+/**
  * Create a diagonal matrix from vector.
  */
 export function cscDiag(v: Float64Array): CscMatrix {

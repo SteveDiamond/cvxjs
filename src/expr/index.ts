@@ -17,16 +17,16 @@ export {
 } from './shape.js';
 
 // Core expression types
-export type { ExprId, ArrayData, IndexRange, ExprData } from './expression.js';
-export { newExprId, resetExprIds, arrayDataSize, isScalarData, getScalarValue } from './expression.js';
+export type { ExprId, ArrayData, IndexRange, ExprData } from './expr-data.js';
+export { newExprId, resetExprIds, arrayDataSize, isScalarData, getScalarValue } from './expr-data.js';
 import {
   exprShape as exprShapeRaw,
   exprVariables as exprVariablesRaw,
   isConstantExpr as isConstantExprRaw,
-} from './expression.js';
-import type { ExprData, ExprId } from './expression.js';
+} from './expr-data.js';
+import type { ExprData, ExprId } from './expr-data.js';
 import type { Shape } from './shape.js';
-import { Expr } from './expr-wrapper.js';
+import { Expr } from './expr.js';
 
 /** Get the shape of an expression (accepts both ExprData and Expr wrapper) */
 export function exprShape(expr: ExprData | Expr): Shape {
@@ -75,5 +75,5 @@ export {
 } from './constant.js';
 
 // Expression wrapper class
-export { Expr, wrap, isExpr } from './expr-wrapper.js';
-export type { ExprInput, ArrayInput } from './expr-wrapper.js';
+export { Expr, wrap, isExpr } from './expr.js';
+export type { ExprInput, ArrayInput } from './expr.js';

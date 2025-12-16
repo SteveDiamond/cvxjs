@@ -1,5 +1,5 @@
 import { ExprData, exprShape, shapeToString } from '../expr/index.js';
-import { Expr } from '../expr/expr-wrapper.js';
+import { Expr } from '../expr/expr.js';
 import { ShapeError } from '../error.js';
 import { toExprData } from './affine.js';
 

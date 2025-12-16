@@ -1,6 +1,6 @@
-import { ExprData, ExprId, newExprId } from './expression.js';
+import { ExprData, ExprId, newExprId } from './expr-data.js';
 import { Shape, normalizeShape, vector, matrix, scalar } from './shape.js';
-import { Expr } from './expr-wrapper.js';
+import { Expr } from './expr.js';
 
 /**
  * Options for variable creation.

@@ -1,4 +1,4 @@
-import { ExprData, ExprId, exprShape, IndexRange, newExprId } from './expression.js';
+import { ExprData, ExprId, exprShape, IndexRange, newExprId } from './expr-data.js';
 import { Shape } from './shape.js';
 import { toArrayData } from './constant.js';
 import { Constraint } from '../constraints/constraint.js';

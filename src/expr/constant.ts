@@ -1,6 +1,6 @@
-import { ExprData, ArrayData, newExprId } from './expression.js';
+import { ExprData, ArrayData, newExprId } from './expr-data.js';
 import { vector, matrix } from './shape.js';
-import { Expr } from './expr-wrapper.js';
+import { Expr } from './expr.js';
 
 /**
  * Create a constant expression from various input types.

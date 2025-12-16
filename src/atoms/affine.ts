@@ -10,9 +10,9 @@ import {
   vector,
 } from '../expr/index.js';
 import { toArrayData } from '../expr/constant.js';
-import { Expr } from '../expr/expr-wrapper.js';
+import { Expr } from '../expr/expr.js';
 import { ShapeError } from '../error.js';
-import { newExprId } from '../expr/expression.js';
+import { newExprId } from '../expr/expr-data.js';
 
 /**
  * Add two expressions.

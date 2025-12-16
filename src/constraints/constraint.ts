@@ -1,5 +1,5 @@
 import { ExprData, exprShape, exprVariables, ExprId } from '../expr/index.js';
-import { Expr } from '../expr/expr-wrapper.js';
+import { Expr } from '../expr/expr.js';
 import { curvature, isConcave, isAffine } from '../dcp/index.js';
 import { sub, toExprData } from '../atoms/affine.js';
 import { ShapeError, DcpError } from '../error.js';

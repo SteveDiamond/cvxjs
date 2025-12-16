@@ -16,7 +16,7 @@ export {
   diag,
   dot,
   cumsum,
-  toExpr,
+  toExprData,
 } from './affine.js';
 
 // Nonlinear atoms

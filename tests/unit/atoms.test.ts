@@ -38,14 +38,14 @@ describe('Affine atoms', () => {
       const x = variable(5);
       const y = variable(5);
       const z = add(x, y);
-      expect(z.expr.kind).toBe('add');
+      expect(z.data.kind).toBe('add');
       expect(shapeEquals(exprShape(z), vector(5))).toBe(true);
     });
 
     it('adds expression and number', () => {
       const x = variable(5);
       const z = add(x, 1);
-      expect(z.expr.kind).toBe('add');
+      expect(z.data.kind).toBe('add');
     });
 
     it('throws on incompatible shapes', () => {
@@ -60,7 +60,7 @@ describe('Affine atoms', () => {
       const x = variable(5);
       const y = variable(5);
       const z = sub(x, y);
-      expect(z.expr.kind).toBe('add'); // sub is implemented as add(x, neg(y))
+      expect(z.data.kind).toBe('add'); // sub is implemented as add(x, neg(y))
     });
   });
 
@@ -68,13 +68,13 @@ describe('Affine atoms', () => {
     it('negates expression', () => {
       const x = variable(5);
       const y = neg(x);
-      expect(y.expr.kind).toBe('neg');
+      expect(y.data.kind).toBe('neg');
     });
 
     it('cancels double negation', () => {
       const x = variable(5);
       const y = neg(neg(x));
-      expect(y.expr).toBe(x.expr); // Should return the same underlying Expr
+      expect(y.data).toBe(x.data); // Should return the same underlying Expr
     });
   });
 
@@ -83,7 +83,7 @@ describe('Affine atoms', () => {
       const x = variable(5);
       const c = constant(2);
       const z = mul(c, x);
-      expect(z.expr.kind).toBe('mul');
+      expect(z.data.kind).toBe('mul');
     });
   });
 
@@ -91,7 +91,7 @@ describe('Affine atoms', () => {
     it('divides expression by scalar', () => {
       const x = variable(5);
       const z = div(x, 2);
-      expect(z.expr.kind).toBe('div');
+      expect(z.data.kind).toBe('div');
     });
   });
 
@@ -103,7 +103,7 @@ describe('Affine atoms', () => {
       ]); // 2x3
       const x = variable(3);
       const y = matmul(A, x);
-      expect(y.expr.kind).toBe('matmul');
+      expect(y.data.kind).toBe('matmul');
       expect(shapeEquals(exprShape(y), vector(2))).toBe(true);
     });
 
@@ -135,7 +135,7 @@ describe('Affine atoms', () => {
     it('sums all elements', () => {
       const x = variable(5);
       const s = sum(x);
-      expect(s.expr.kind).toBe('sum');
+      expect(s.data.kind).toBe('sum');
       expect(shapeEquals(exprShape(s), scalar())).toBe(true);
     });
 
@@ -143,8 +143,8 @@ describe('Affine atoms', () => {
       const A = variable([3, 4]);
       const s0 = sum(A, 0); // Sum along rows -> 4 columns
       const s1 = sum(A, 1); // Sum along cols -> 3 rows
-      expect(s0.expr.kind).toBe('sum');
-      expect(s1.expr.kind).toBe('sum');
+      expect(s0.data.kind).toBe('sum');
+      expect(s1.data.kind).toBe('sum');
     });
   });
 
@@ -152,7 +152,7 @@ describe('Affine atoms', () => {
     it('reshapes vector to matrix', () => {
       const x = variable(12);
       const M = reshape(x, [3, 4]);
-      expect(M.expr.kind).toBe('reshape');
+      expect(M.data.kind).toBe('reshape');
       expect(shapeEquals(exprShape(M), matrix(3, 4))).toBe(true);
     });
 
@@ -167,12 +167,12 @@ describe('Affine atoms', () => {
       const x = variable(3);
       const y = variable(3);
       const z = vstack(x, y);
-      expect(z.expr.kind).toBe('vstack');
+      expect(z.data.kind).toBe('vstack');
     });
 
     it('returns single arg unchanged', () => {
       const x = variable(3);
-      expect(vstack(x).expr).toBe(x.expr);
+      expect(vstack(x).data).toBe(x.data);
     });
   });
 
@@ -181,7 +181,7 @@ describe('Affine atoms', () => {
       const x = variable(3);
       const y = variable(3);
       const z = hstack(x, y);
-      expect(z.expr.kind).toBe('hstack');
+      expect(z.data.kind).toBe('hstack');
     });
   });
 
@@ -189,14 +189,14 @@ describe('Affine atoms', () => {
     it('transposes matrix', () => {
       const A = variable([3, 4]);
       const At = transpose(A);
-      expect(At.expr.kind).toBe('transpose');
+      expect(At.data.kind).toBe('transpose');
       expect(shapeEquals(exprShape(At), matrix(4, 3))).toBe(true);
     });
 
     it('cancels double transpose', () => {
       const A = variable([3, 4]);
       const Att = transpose(transpose(A));
-      expect(Att.expr).toBe(A.expr);
+      expect(Att.data).toBe(A.data);
     });
   });
 
@@ -204,7 +204,7 @@ describe('Affine atoms', () => {
     it('computes trace of square matrix', () => {
       const A = variable([3, 3]);
       const t = trace(A);
-      expect(t.expr.kind).toBe('trace');
+      expect(t.data.kind).toBe('trace');
       expect(shapeEquals(exprShape(t), scalar())).toBe(true);
     });
 
@@ -218,14 +218,14 @@ describe('Affine atoms', () => {
     it('extracts diagonal from matrix', () => {
       const A = variable([3, 3]);
       const d = diag(A);
-      expect(d.expr.kind).toBe('diag');
+      expect(d.data.kind).toBe('diag');
       expect(shapeEquals(exprShape(d), vector(3))).toBe(true);
     });
 
     it('creates diagonal matrix from vector', () => {
       const v = variable(3);
       const D = diag(v);
-      expect(D.expr.kind).toBe('diag');
+      expect(D.data.kind).toBe('diag');
       expect(shapeEquals(exprShape(D), matrix(3, 3))).toBe(true);
     });
   });
@@ -236,7 +236,7 @@ describe('Affine atoms', () => {
       const y = variable(5);
       const d = dot(x, y);
       // dot is implemented as sum(mul(x, y))
-      expect(d.expr.kind).toBe('sum');
+      expect(d.data.kind).toBe('sum');
       expect(shapeEquals(exprShape(d), scalar())).toBe(true);
     });
 
@@ -263,29 +263,29 @@ describe('Nonlinear atoms', () => {
     it('norm1 returns scalar', () => {
       const x = variable(5);
       const n = norm1(x);
-      expect(n.expr.kind).toBe('norm1');
+      expect(n.data.kind).toBe('norm1');
       expect(shapeEquals(exprShape(n), scalar())).toBe(true);
     });
 
     it('norm2 returns scalar', () => {
       const x = variable(5);
       const n = norm2(x);
-      expect(n.expr.kind).toBe('norm2');
+      expect(n.data.kind).toBe('norm2');
       expect(shapeEquals(exprShape(n), scalar())).toBe(true);
     });
 
     it('normInf returns scalar', () => {
       const x = variable(5);
       const n = normInf(x);
-      expect(n.expr.kind).toBe('normInf');
+      expect(n.data.kind).toBe('normInf');
       expect(shapeEquals(exprShape(n), scalar())).toBe(true);
     });
 
     it('norm() dispatches correctly', () => {
       const x = variable(5);
-      expect(norm(x, 1).expr.kind).toBe('norm1');
-      expect(norm(x, 2).expr.kind).toBe('norm2');
-      expect(norm(x, Infinity).expr.kind).toBe('normInf');
+      expect(norm(x, 1).data.kind).toBe('norm1');
+      expect(norm(x, 2).data.kind).toBe('norm2');
+      expect(norm(x, Infinity).data.kind).toBe('normInf');
     });
   });
 
@@ -293,7 +293,7 @@ describe('Nonlinear atoms', () => {
     it('preserves shape', () => {
       const x = variable(5);
       const y = abs(x);
-      expect(y.expr.kind).toBe('abs');
+      expect(y.data.kind).toBe('abs');
       expect(shapeEquals(exprShape(y), vector(5))).toBe(true);
     });
   });
@@ -302,7 +302,7 @@ describe('Nonlinear atoms', () => {
     it('preserves shape', () => {
       const x = variable(5);
       const y = pos(x);
-      expect(y.expr.kind).toBe('pos');
+      expect(y.data.kind).toBe('pos');
       expect(shapeEquals(exprShape(y), vector(5))).toBe(true);
     });
   });
@@ -312,7 +312,7 @@ describe('Nonlinear atoms', () => {
       const x = variable(5);
       const y = variable(5);
       const z = maximum(x, y);
-      expect(z.expr.kind).toBe('maximum');
+      expect(z.data.kind).toBe('maximum');
       expect(shapeEquals(exprShape(z), vector(5))).toBe(true);
     });
 
@@ -320,13 +320,13 @@ describe('Nonlinear atoms', () => {
       const x = variable(5);
       const y = variable(5);
       const z = minimum(x, y);
-      expect(z.expr.kind).toBe('minimum');
+      expect(z.data.kind).toBe('minimum');
       expect(shapeEquals(exprShape(z), vector(5))).toBe(true);
     });
 
     it('maximum of single arg returns arg', () => {
       const x = variable(5);
-      expect(maximum(x).expr).toBe(x.expr);
+      expect(maximum(x).data).toBe(x.data);
     });
   });
 
@@ -334,7 +334,7 @@ describe('Nonlinear atoms', () => {
     it('returns scalar', () => {
       const x = variable(5);
       const s = sumSquares(x);
-      expect(s.expr.kind).toBe('sumSquares');
+      expect(s.data.kind).toBe('sumSquares');
       expect(shapeEquals(exprShape(s), scalar())).toBe(true);
     });
   });
@@ -348,7 +348,7 @@ describe('Nonlinear atoms', () => {
         [0, 0, 1],
       ]);
       const q = quadForm(x, P);
-      expect(q.expr.kind).toBe('quadForm');
+      expect(q.data.kind).toBe('quadForm');
       expect(shapeEquals(exprShape(q), scalar())).toBe(true);
     });
 

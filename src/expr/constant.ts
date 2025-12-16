@@ -1,6 +1,6 @@
-import { Expr, ArrayData, newExprId } from './expression.js';
+import { ExprData, ArrayData, newExprId } from './expression.js';
 import { vector, matrix } from './shape.js';
-import { Expression } from './expr-wrapper.js';
+import { Expr } from './expr-wrapper.js';
 
 /**
  * Create a constant expression from various input types.
@@ -14,8 +14,8 @@ import { Expression } from './expr-wrapper.js';
  */
 export function constant(
   value: number | readonly number[] | readonly (readonly number[])[] | Float64Array
-): Expression {
-  return new Expression({
+): Expr {
+  return new Expr({
     kind: 'constant',
     id: newExprId(),
     value: toArrayData(value),
@@ -25,8 +25,8 @@ export function constant(
 /**
  * Create a constant expression from pre-built ArrayData.
  */
-export function constantFromData(data: ArrayData): Expression {
-  return new Expression({
+export function constantFromData(data: ArrayData): Expr {
+  return new Expr({
     kind: 'constant',
     id: newExprId(),
     value: data,
@@ -100,21 +100,21 @@ export function toArrayData(
 /**
  * Create a scalar constant.
  */
-export function scalarConst(value: number): Expression {
+export function scalarConst(value: number): Expr {
   return constant(value);
 }
 
 /**
  * Create a vector constant.
  */
-export function vectorConst(values: readonly number[] | Float64Array): Expression {
+export function vectorConst(values: readonly number[] | Float64Array): Expr {
   return constant(values);
 }
 
 /**
  * Create a matrix constant.
  */
-export function matrixConst(values: readonly (readonly number[])[]): Expression {
+export function matrixConst(values: readonly (readonly number[])[]): Expr {
   return constant(values);
 }
 
@@ -127,11 +127,11 @@ export function matrixConst(values: readonly (readonly number[])[]): Expression 
  * const Z = zeros(3, 4);     // 3x4 zero matrix
  * ```
  */
-export function zeros(n: number): Expression;
-export function zeros(rows: number, cols: number): Expression;
-export function zeros(rowsOrN: number, cols?: number): Expression {
+export function zeros(n: number): Expr;
+export function zeros(rows: number, cols: number): Expr;
+export function zeros(rowsOrN: number, cols?: number): Expr {
   if (cols === undefined) {
-    return new Expression({
+    return new Expr({
       kind: 'constant',
       id: newExprId(),
       value: {
@@ -141,7 +141,7 @@ export function zeros(rowsOrN: number, cols?: number): Expression {
       },
     });
   }
-  return new Expression({
+  return new Expr({
     kind: 'constant',
     id: newExprId(),
     value: {
@@ -161,13 +161,13 @@ export function zeros(rowsOrN: number, cols?: number): Expression {
  * const O = ones(3, 4);     // 3x4 ones matrix
  * ```
  */
-export function ones(n: number): Expression;
-export function ones(rows: number, cols: number): Expression;
-export function ones(rowsOrN: number, cols?: number): Expression {
+export function ones(n: number): Expr;
+export function ones(rows: number, cols: number): Expr;
+export function ones(rowsOrN: number, cols?: number): Expr {
   if (cols === undefined) {
     const data = new Float64Array(rowsOrN);
     data.fill(1);
-    return new Expression({
+    return new Expr({
       kind: 'constant',
       id: newExprId(),
       value: {
@@ -179,7 +179,7 @@ export function ones(rowsOrN: number, cols?: number): Expression {
   }
   const data = new Float64Array(rowsOrN * cols);
   data.fill(1);
-  return new Expression({
+  return new Expr({
     kind: 'constant',
     id: newExprId(),
     value: {
@@ -198,12 +198,12 @@ export function ones(rowsOrN: number, cols?: number): Expression {
  * const I = eye(3);  // 3x3 identity matrix
  * ```
  */
-export function eye(n: number): Expression {
+export function eye(n: number): Expr {
   const data = new Float64Array(n * n);
   for (let i = 0; i < n; i++) {
     data[i * n + i] = 1;
   }
-  return new Expression({
+  return new Expr({
     kind: 'constant',
     id: newExprId(),
     value: {
@@ -217,8 +217,8 @@ export function eye(n: number): Expression {
 /**
  * Check if an expression is a constant.
  */
-export function isConstant(expr: Expr | Expression): boolean {
-  const e = expr instanceof Expression ? expr.expr : expr;
+export function isConstant(expr: ExprData | Expr): boolean {
+  const e = expr instanceof Expr ? expr.data : expr;
   return e.kind === 'constant';
 }
 
@@ -226,8 +226,8 @@ export function isConstant(expr: Expr | Expression): boolean {
  * Get the numeric value of a constant expression.
  * Throws if the expression is not a constant.
  */
-export function getConstantData(expr: Expr | Expression): ArrayData {
-  const e = expr instanceof Expression ? expr.expr : expr;
+export function getConstantData(expr: ExprData | Expr): ArrayData {
+  const e = expr instanceof Expr ? expr.data : expr;
   if (e.kind !== 'constant') {
     throw new Error(`Expected constant, got ${e.kind}`);
   }
@@ -238,8 +238,8 @@ export function getConstantData(expr: Expr | Expression): ArrayData {
  * Get the scalar value of a constant expression.
  * Throws if the expression is not a scalar constant.
  */
-export function getScalarConstant(expr: Expr | Expression): number {
-  const e = expr instanceof Expression ? expr.expr : expr;
+export function getScalarConstant(expr: ExprData | Expr): number {
+  const e = expr instanceof Expr ? expr.data : expr;
   if (e.kind !== 'constant') {
     throw new Error(`Expected constant, got ${e.kind}`);
   }

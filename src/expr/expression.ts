@@ -42,12 +42,15 @@ export type IndexRange =
   | { type: 'all' };
 
 /**
- * Core expression type using discriminated union.
+ * Core expression data type using discriminated union.
  *
  * All expressions are immutable. The expression tree forms a DAG
  * where subexpressions can be shared.
+ *
+ * This is the internal data structure. Users should work with the `Expr` class
+ * which wraps this type and provides a fluent API.
  */
-export type Expr =
+export type ExprData =
   // === Leaf nodes ===
   | {
       readonly kind: 'variable';
@@ -64,45 +67,45 @@ export type Expr =
     }
 
   // === Affine atoms ===
-  | { readonly kind: 'add'; readonly left: Expr; readonly right: Expr }
-  | { readonly kind: 'neg'; readonly arg: Expr }
-  | { readonly kind: 'mul'; readonly left: Expr; readonly right: Expr } // element-wise or scalar
-  | { readonly kind: 'div'; readonly left: Expr; readonly right: Expr } // element-wise by scalar constant
-  | { readonly kind: 'matmul'; readonly left: Expr; readonly right: Expr }
-  | { readonly kind: 'sum'; readonly arg: Expr; readonly axis?: number }
-  | { readonly kind: 'reshape'; readonly arg: Expr; readonly shape: Shape }
-  | { readonly kind: 'index'; readonly arg: Expr; readonly ranges: readonly IndexRange[] }
-  | { readonly kind: 'vstack'; readonly args: readonly Expr[] }
-  | { readonly kind: 'hstack'; readonly args: readonly Expr[] }
-  | { readonly kind: 'transpose'; readonly arg: Expr }
-  | { readonly kind: 'trace'; readonly arg: Expr }
-  | { readonly kind: 'diag'; readonly arg: Expr }
-  | { readonly kind: 'cumsum'; readonly arg: Expr; readonly axis?: number }
+  | { readonly kind: 'add'; readonly left: ExprData; readonly right: ExprData }
+  | { readonly kind: 'neg'; readonly arg: ExprData }
+  | { readonly kind: 'mul'; readonly left: ExprData; readonly right: ExprData } // element-wise or scalar
+  | { readonly kind: 'div'; readonly left: ExprData; readonly right: ExprData } // element-wise by scalar constant
+  | { readonly kind: 'matmul'; readonly left: ExprData; readonly right: ExprData }
+  | { readonly kind: 'sum'; readonly arg: ExprData; readonly axis?: number }
+  | { readonly kind: 'reshape'; readonly arg: ExprData; readonly shape: Shape }
+  | { readonly kind: 'index'; readonly arg: ExprData; readonly ranges: readonly IndexRange[] }
+  | { readonly kind: 'vstack'; readonly args: readonly ExprData[] }
+  | { readonly kind: 'hstack'; readonly args: readonly ExprData[] }
+  | { readonly kind: 'transpose'; readonly arg: ExprData }
+  | { readonly kind: 'trace'; readonly arg: ExprData }
+  | { readonly kind: 'diag'; readonly arg: ExprData }
+  | { readonly kind: 'cumsum'; readonly arg: ExprData; readonly axis?: number }
 
   // === Nonlinear convex atoms ===
-  | { readonly kind: 'norm1'; readonly arg: Expr }
-  | { readonly kind: 'norm2'; readonly arg: Expr }
-  | { readonly kind: 'normInf'; readonly arg: Expr }
-  | { readonly kind: 'abs'; readonly arg: Expr }
-  | { readonly kind: 'pos'; readonly arg: Expr } // max(x, 0)
-  | { readonly kind: 'negPart'; readonly arg: Expr } // max(-x, 0) - negative part
-  | { readonly kind: 'maximum'; readonly args: readonly Expr[] }
-  | { readonly kind: 'sumSquares'; readonly arg: Expr }
-  | { readonly kind: 'quadForm'; readonly x: Expr; readonly P: Expr }
-  | { readonly kind: 'quadOverLin'; readonly x: Expr; readonly y: Expr }
-  | { readonly kind: 'exp'; readonly arg: Expr } // e^x, convex
+  | { readonly kind: 'norm1'; readonly arg: ExprData }
+  | { readonly kind: 'norm2'; readonly arg: ExprData }
+  | { readonly kind: 'normInf'; readonly arg: ExprData }
+  | { readonly kind: 'abs'; readonly arg: ExprData }
+  | { readonly kind: 'pos'; readonly arg: ExprData } // max(x, 0)
+  | { readonly kind: 'negPart'; readonly arg: ExprData } // max(-x, 0) - negative part
+  | { readonly kind: 'maximum'; readonly args: readonly ExprData[] }
+  | { readonly kind: 'sumSquares'; readonly arg: ExprData }
+  | { readonly kind: 'quadForm'; readonly x: ExprData; readonly P: ExprData }
+  | { readonly kind: 'quadOverLin'; readonly x: ExprData; readonly y: ExprData }
+  | { readonly kind: 'exp'; readonly arg: ExprData } // e^x, convex
 
   // === Nonlinear concave atoms ===
-  | { readonly kind: 'minimum'; readonly args: readonly Expr[] }
-  | { readonly kind: 'log'; readonly arg: Expr } // log(x), concave
-  | { readonly kind: 'entropy'; readonly arg: Expr } // -x*log(x), concave
-  | { readonly kind: 'sqrt'; readonly arg: Expr } // sqrt(x), concave
-  | { readonly kind: 'power'; readonly arg: Expr; readonly p: number }; // x^p, curvature depends on p
+  | { readonly kind: 'minimum'; readonly args: readonly ExprData[] }
+  | { readonly kind: 'log'; readonly arg: ExprData } // log(x), concave
+  | { readonly kind: 'entropy'; readonly arg: ExprData } // -x*log(x), concave
+  | { readonly kind: 'sqrt'; readonly arg: ExprData } // sqrt(x), concave
+  | { readonly kind: 'power'; readonly arg: ExprData; readonly p: number }; // x^p, curvature depends on p
 
 /**
  * Get the shape of an expression.
  */
-export function exprShape(expr: Expr): Shape {
+export function exprShape(expr: ExprData): Shape {
   switch (expr.kind) {
     case 'variable':
       return expr.shape;
@@ -235,13 +238,13 @@ export function exprShape(expr: Expr): Shape {
 /**
  * Get all variable IDs referenced in an expression.
  */
-export function exprVariables(expr: Expr): Set<ExprId> {
+export function exprVariables(expr: ExprData): Set<ExprId> {
   const vars = new Set<ExprId>();
   collectVariables(expr, vars);
   return vars;
 }
 
-function collectVariables(expr: Expr, vars: Set<ExprId>): void {
+function collectVariables(expr: ExprData, vars: Set<ExprId>): void {
   switch (expr.kind) {
     case 'variable':
       vars.add(expr.id);
@@ -305,7 +308,7 @@ function collectVariables(expr: Expr, vars: Set<ExprId>): void {
 /**
  * Check if an expression is constant (contains no variables).
  */
-export function isConstantExpr(expr: Expr): boolean {
+export function isConstantExpr(expr: ExprData): boolean {
   return exprVariables(expr).size === 0;
 }
 

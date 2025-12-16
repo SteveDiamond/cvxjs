@@ -1,4 +1,4 @@
-import { Expr, ExprId, exprShape, IndexRange, newExprId } from './expression.js';
+import { ExprData, ExprId, exprShape, IndexRange, newExprId } from './expression.js';
 import { Shape } from './shape.js';
 import { toArrayData } from './constant.js';
 import { Constraint } from '../constraints/constraint.js';
@@ -50,9 +50,9 @@ import {
 } from '../constraints/constraint.js';
 
 /**
- * Input type for Expression methods - accepts Expression, Expr, or number.
+ * Input type for Expr methods - accepts Expr, ExprData, or number.
  */
-export type ExprInput = Expression | Expr | number;
+export type ExprInput = Expr | ExprData | number;
 
 /**
  * Input type for array-like values.
@@ -64,9 +64,9 @@ export type ArrayInput =
   | Float64Array;
 
 /**
- * Create a constant Expr from a value.
+ * Create a constant ExprData from a value.
  */
-function makeConstant(value: ArrayInput): Expr {
+function makeConstant(value: ArrayInput): ExprData {
   return {
     kind: 'constant',
     id: newExprId(),
@@ -75,11 +75,11 @@ function makeConstant(value: ArrayInput): Expr {
 }
 
 /**
- * Convert ExprInput to Expr, auto-wrapping numbers as constants.
+ * Convert ExprInput to ExprData, auto-wrapping numbers as constants.
  */
-function toExpr(value: ExprInput): Expr {
-  if (value instanceof Expression) {
-    return value.expr;
+function toExprData(value: ExprInput): ExprData {
+  if (value instanceof Expr) {
+    return value.data;
   }
   if (typeof value === 'number') {
     return makeConstant(value);
@@ -88,21 +88,21 @@ function toExpr(value: ExprInput): Expr {
 }
 
 /**
- * Convert array input to Expr constant.
+ * Convert array input to ExprData constant.
  */
-function arrayToExpr(value: ArrayInput): Expr {
+function arrayToExprData(value: ArrayInput): ExprData {
   return makeConstant(value);
 }
 
 /**
  * Expression wrapper class providing fluent method chaining.
  *
- * This class wraps the underlying `Expr` discriminated union and provides
+ * This class wraps the underlying `ExprData` discriminated union and provides
  * convenient methods for building optimization expressions.
  *
  * @example
  * ```ts
- * const x = variable(5);  // Returns Expression
+ * const x = variable(5);  // Returns Expr
  * const residual = A.matmul(x).sub(b);
  * const objective = residual.norm2().add(x.norm1().mul(lambda));
  *
@@ -111,15 +111,15 @@ function arrayToExpr(value: ArrayInput): Expr {
  *   .solve();
  * ```
  */
-export class Expression {
+export class Expr {
   /**
-   * The underlying expression (discriminated union).
-   * Access this for interop with existing code that expects `Expr`.
+   * The underlying expression data (discriminated union).
+   * Access this for interop with existing code that expects `ExprData`.
    */
-  public readonly expr: Expr;
+  public readonly data: ExprData;
 
-  constructor(expr: Expr) {
-    this.expr = expr;
+  constructor(data: ExprData) {
+    this.data = data;
   }
 
   // ==================== Properties ====================
@@ -129,24 +129,24 @@ export class Expression {
    * Throws if this is not a variable expression.
    */
   get id(): ExprId {
-    if (this.expr.kind !== 'variable') {
-      throw new Error(`Cannot get id from non-variable expression (kind: ${this.expr.kind})`);
+    if (this.data.kind !== 'variable') {
+      throw new Error(`Cannot get id from non-variable expression (kind: ${this.data.kind})`);
     }
-    return this.expr.id;
+    return this.data.id;
   }
 
   /**
    * Get the shape of this expression.
    */
   get shape(): Shape {
-    return exprShape(this.expr);
+    return exprShape(this.data);
   }
 
   /**
    * Get the kind of this expression.
    */
-  get kind(): Expr['kind'] {
-    return this.expr.kind;
+  get kind(): ExprData['kind'] {
+    return this.data.kind;
   }
 
   // ==================== Arithmetic Operations ====================
@@ -160,8 +160,8 @@ export class Expression {
    * x.add(5)       // x + 5 (auto-wraps constant)
    * ```
    */
-  add(other: ExprInput): Expression {
-    return addFn(this.expr, toExpr(other));
+  add(other: ExprInput): Expr {
+    return addFn(this.data, toExprData(other));
   }
 
   /**
@@ -173,8 +173,8 @@ export class Expression {
    * x.sub(5)       // x - 5
    * ```
    */
-  sub(other: ExprInput): Expression {
-    return subFn(this.expr, toExpr(other));
+  sub(other: ExprInput): Expr {
+    return subFn(this.data, toExprData(other));
   }
 
   /**
@@ -185,8 +185,8 @@ export class Expression {
    * x.neg()        // -x
    * ```
    */
-  neg(): Expression {
-    return negFn(this.expr);
+  neg(): Expr {
+    return negFn(this.data);
   }
 
   /**
@@ -198,8 +198,8 @@ export class Expression {
    * x.mul(c)       // x * c (element-wise)
    * ```
    */
-  mul(other: ExprInput): Expression {
-    return mulFn(this.expr, toExpr(other));
+  mul(other: ExprInput): Expr {
+    return mulFn(this.data, toExprData(other));
   }
 
   /**
@@ -210,8 +210,8 @@ export class Expression {
    * x.div(2)       // x / 2
    * ```
    */
-  div(other: ExprInput): Expression {
-    return divFn(this.expr, toExpr(other));
+  div(other: ExprInput): Expr {
+    return divFn(this.data, toExprData(other));
   }
 
   /**
@@ -222,8 +222,8 @@ export class Expression {
    * A.matmul(x)    // A @ x
    * ```
    */
-  matmul(other: ExprInput): Expression {
-    return matmulFn(this.expr, toExpr(other));
+  matmul(other: ExprInput): Expr {
+    return matmulFn(this.data, toExprData(other));
   }
 
   /**
@@ -234,8 +234,8 @@ export class Expression {
    * x.dot(y)       // x' * y
    * ```
    */
-  dot(other: ExprInput): Expression {
-    return dotFn(this.expr, toExpr(other));
+  dot(other: ExprInput): Expr {
+    return dotFn(this.data, toExprData(other));
   }
 
   // ==================== Reduction Operations ====================
@@ -250,8 +250,8 @@ export class Expression {
    * A.sum(1)       // Sum along columns (row sums)
    * ```
    */
-  sum(axis?: number): Expression {
-    return sumFn(this.expr, axis);
+  sum(axis?: number): Expr {
+    return sumFn(this.data, axis);
   }
 
   /**
@@ -262,8 +262,8 @@ export class Expression {
    * x.cumsum()     // [x1, x1+x2, x1+x2+x3, ...]
    * ```
    */
-  cumsum(axis?: number): Expression {
-    return cumsumFn(this.expr, axis);
+  cumsum(axis?: number): Expr {
+    return cumsumFn(this.data, axis);
   }
 
   /**
@@ -274,8 +274,8 @@ export class Expression {
    * A.trace()      // tr(A)
    * ```
    */
-  trace(): Expression {
-    return traceFn(this.expr);
+  trace(): Expr {
+    return traceFn(this.data);
   }
 
   // ==================== Shape Operations ====================
@@ -288,8 +288,8 @@ export class Expression {
    * x.reshape([3, 4])   // Reshape to 3x4 matrix
    * ```
    */
-  reshape(shape: readonly [number] | readonly [number, number]): Expression {
-    return reshapeFn(this.expr, shape);
+  reshape(shape: readonly [number] | readonly [number, number]): Expr {
+    return reshapeFn(this.data, shape);
   }
 
   /**
@@ -303,8 +303,8 @@ export class Expression {
    * A.index('all', 0)       // A[:, 0] (column)
    * ```
    */
-  index(...indices: (number | readonly [number, number] | 'all')[]): Expression {
-    return indexFn(this.expr, ...indices);
+  index(...indices: (number | readonly [number, number] | 'all')[]): Expr {
+    return indexFn(this.data, ...indices);
   }
 
   /**
@@ -316,14 +316,14 @@ export class Expression {
    * A.transpose()  // A' (alias)
    * ```
    */
-  T(): Expression {
-    return transposeFn(this.expr);
+  T(): Expr {
+    return transposeFn(this.data);
   }
 
   /**
    * Transpose this matrix (alias for T()).
    */
-  transpose(): Expression {
+  transpose(): Expr {
     return this.T();
   }
 
@@ -336,8 +336,8 @@ export class Expression {
    * v.diag()       // Create diagonal matrix from vector v
    * ```
    */
-  diag(): Expression {
-    return diagFn(this.expr);
+  diag(): Expr {
+    return diagFn(this.data);
   }
 
   // ==================== Norm Operations ====================
@@ -350,8 +350,8 @@ export class Expression {
    * x.norm1()      // ||x||_1 = sum(|x_i|)
    * ```
    */
-  norm1(): Expression {
-    return norm1Fn(this.expr);
+  norm1(): Expr {
+    return norm1Fn(this.data);
   }
 
   /**
@@ -362,8 +362,8 @@ export class Expression {
    * x.norm2()      // ||x||_2 = sqrt(sum(x_i^2))
    * ```
    */
-  norm2(): Expression {
-    return norm2Fn(this.expr);
+  norm2(): Expr {
+    return norm2Fn(this.data);
   }
 
   /**
@@ -374,8 +374,8 @@ export class Expression {
    * x.normInf()    // ||x||_inf = max(|x_i|)
    * ```
    */
-  normInf(): Expression {
-    return normInfFn(this.expr);
+  normInf(): Expr {
+    return normInfFn(this.data);
   }
 
   /**
@@ -386,8 +386,8 @@ export class Expression {
    * x.sumSquares() // ||x||_2^2 = sum(x_i^2)
    * ```
    */
-  sumSquares(): Expression {
-    return sumSquaresFn(this.expr);
+  sumSquares(): Expr {
+    return sumSquaresFn(this.data);
   }
 
   /**
@@ -398,8 +398,8 @@ export class Expression {
    * x.quadForm(P)  // x' * P * x
    * ```
    */
-  quadForm(P: ExprInput): Expression {
-    return new Expression(quadFormFn(this.expr, toExpr(P)));
+  quadForm(P: ExprInput): Expr {
+    return quadFormFn(this.data, toExprData(P));
   }
 
   /**
@@ -410,8 +410,8 @@ export class Expression {
    * x.quadOverLin(y)  // ||x||^2 / y
    * ```
    */
-  quadOverLin(y: ExprInput): Expression {
-    return new Expression(quadOverLinFn(this.expr, toExpr(y)));
+  quadOverLin(y: ExprInput): Expr {
+    return quadOverLinFn(this.data, toExprData(y));
   }
 
   // ==================== Element-wise Operations ====================
@@ -424,8 +424,8 @@ export class Expression {
    * x.abs()        // |x|
    * ```
    */
-  abs(): Expression {
-    return new Expression(absFn(this.expr));
+  abs(): Expr {
+    return absFn(this.data);
   }
 
   /**
@@ -436,8 +436,8 @@ export class Expression {
    * x.pos()        // max(x, 0)
    * ```
    */
-  pos(): Expression {
-    return new Expression(posFn(this.expr));
+  pos(): Expr {
+    return posFn(this.data);
   }
 
   /**
@@ -448,8 +448,8 @@ export class Expression {
    * x.negPart()    // max(-x, 0)
    * ```
    */
-  negPart(): Expression {
-    return new Expression(negPartFn(this.expr));
+  negPart(): Expr {
+    return negPartFn(this.data);
   }
 
   /**
@@ -460,8 +460,8 @@ export class Expression {
    * x.exp()        // e^x
    * ```
    */
-  exp(): Expression {
-    return new Expression(expFn(this.expr));
+  exp(): Expr {
+    return expFn(this.data);
   }
 
   /**
@@ -472,8 +472,8 @@ export class Expression {
    * x.log()        // ln(x)
    * ```
    */
-  log(): Expression {
-    return new Expression(logFn(this.expr));
+  log(): Expr {
+    return logFn(this.data);
   }
 
   /**
@@ -484,8 +484,8 @@ export class Expression {
    * x.entropy()    // -x * log(x)
    * ```
    */
-  entropy(): Expression {
-    return new Expression(entropyFn(this.expr));
+  entropy(): Expr {
+    return entropyFn(this.data);
   }
 
   /**
@@ -496,8 +496,8 @@ export class Expression {
    * x.sqrt()       // sqrt(x)
    * ```
    */
-  sqrt(): Expression {
-    return new Expression(sqrtFn(this.expr));
+  sqrt(): Expr {
+    return sqrtFn(this.data);
   }
 
   /**
@@ -509,8 +509,8 @@ export class Expression {
    * x.power(0.5)   // sqrt(x)
    * ```
    */
-  power(p: number): Expression {
-    return new Expression(powerFn(this.expr, p));
+  power(p: number): Expr {
+    return powerFn(this.data, p);
   }
 
   // ==================== Constraint Methods ====================
@@ -525,7 +525,7 @@ export class Expression {
    * ```
    */
   eq(other: ExprInput): Constraint {
-    return eqFn(this.expr, toExpr(other));
+    return eqFn(this.data, toExprData(other));
   }
 
   /**
@@ -538,7 +538,7 @@ export class Expression {
    * ```
    */
   le(other: ExprInput): Constraint {
-    return leFn(this.expr, toExpr(other));
+    return leFn(this.data, toExprData(other));
   }
 
   /**
@@ -551,7 +551,7 @@ export class Expression {
    * ```
    */
   ge(other: ExprInput): Constraint {
-    return geFn(this.expr, toExpr(other));
+    return geFn(this.data, toExprData(other));
   }
 
   /**
@@ -563,7 +563,7 @@ export class Expression {
    * ```
    */
   soc(t: ExprInput): Constraint {
-    return socFn(this.expr, toExpr(t));
+    return socFn(this.data, toExprData(t));
   }
 
   // ==================== Static Methods for Combining Expressions ====================
@@ -573,11 +573,11 @@ export class Expression {
    *
    * @example
    * ```ts
-   * Expression.vstack(x, y, z)
+   * Expr.vstack(x, y, z)
    * ```
    */
-  static vstack(...args: ExprInput[]): Expression {
-    return new Expression(vstackFn(...args.map(toExpr)));
+  static vstack(...args: ExprInput[]): Expr {
+    return vstackFn(...args.map(toExprData));
   }
 
   /**
@@ -585,11 +585,11 @@ export class Expression {
    *
    * @example
    * ```ts
-   * Expression.hstack(x, y, z)
+   * Expr.hstack(x, y, z)
    * ```
    */
-  static hstack(...args: ExprInput[]): Expression {
-    return new Expression(hstackFn(...args.map(toExpr)));
+  static hstack(...args: ExprInput[]): Expr {
+    return hstackFn(...args.map(toExprData));
   }
 
   /**
@@ -597,11 +597,11 @@ export class Expression {
    *
    * @example
    * ```ts
-   * Expression.maximum(x, y, z)
+   * Expr.maximum(x, y, z)
    * ```
    */
-  static maximum(...args: ExprInput[]): Expression {
-    return new Expression(maximumFn(...args.map(toExpr)));
+  static maximum(...args: ExprInput[]): Expr {
+    return maximumFn(...args.map(toExprData));
   }
 
   /**
@@ -609,45 +609,45 @@ export class Expression {
    *
    * @example
    * ```ts
-   * Expression.minimum(x, y, z)
+   * Expr.minimum(x, y, z)
    * ```
    */
-  static minimum(...args: ExprInput[]): Expression {
-    return new Expression(minimumFn(...args.map(toExpr)));
+  static minimum(...args: ExprInput[]): Expr {
+    return minimumFn(...args.map(toExprData));
   }
 
   /**
-   * Create an Expression from a constant value.
+   * Create an Expr from a constant value.
    *
    * @example
    * ```ts
-   * Expression.constant(5)
-   * Expression.constant([1, 2, 3])
-   * Expression.constant([[1, 2], [3, 4]])
+   * Expr.constant(5)
+   * Expr.constant([1, 2, 3])
+   * Expr.constant([[1, 2], [3, 4]])
    * ```
    */
-  static constant(value: ArrayInput): Expression {
-    return new Expression(arrayToExpr(value));
+  static constant(value: ArrayInput): Expr {
+    return new Expr(arrayToExprData(value));
   }
 }
 
 /**
- * Wrap an Expr in an Expression for fluent API access.
+ * Wrap ExprData in an Expr for fluent API access.
  * This is a convenience function for interop with existing code.
  *
  * @example
  * ```ts
- * const x = variable(5);           // Already returns Expression
- * const wrapped = wrap(someExpr);  // Wrap existing Expr
+ * const x = variable(5);           // Already returns Expr
+ * const wrapped = wrap(someData);  // Wrap existing ExprData
  * ```
  */
-export function wrap(expr: Expr): Expression {
-  return new Expression(expr);
+export function wrap(data: ExprData): Expr {
+  return new Expr(data);
 }
 
 /**
- * Check if a value is an Expression instance.
+ * Check if a value is an Expr instance.
  */
-export function isExpression(value: unknown): value is Expression {
-  return value instanceof Expression;
+export function isExpr(value: unknown): value is Expr {
+  return value instanceof Expr;
 }

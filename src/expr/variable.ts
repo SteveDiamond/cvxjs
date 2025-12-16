@@ -1,6 +1,6 @@
-import { Expr, ExprId, newExprId } from './expression.js';
+import { ExprData, ExprId, newExprId } from './expression.js';
 import { Shape, normalizeShape, vector, matrix, scalar } from './shape.js';
-import { Expression } from './expr-wrapper.js';
+import { Expr } from './expr-wrapper.js';
 
 /**
  * Options for variable creation.
@@ -54,8 +54,8 @@ export class VariableBuilder {
   }
 
   /** Build the variable expression */
-  build(): Expression {
-    return new Expression({
+  build(): Expr {
+    return new Expr({
       kind: 'variable',
       id: newExprId(),
       shape: this._shape,
@@ -82,7 +82,7 @@ export class VariableBuilder {
 export function variable(
   shape: number | readonly [number] | readonly [number, number],
   options?: VariableOptions
-): Expression {
+): Expr {
   const builder = new VariableBuilder(shape);
   if (options?.name) builder.name(options.name);
   if (options?.nonneg) builder.nonneg();
@@ -99,8 +99,8 @@ export function variable(
  * const t = scalarVar({ name: 't', nonneg: true });
  * ```
  */
-export function scalarVar(options?: VariableOptions): Expression {
-  return new Expression({
+export function scalarVar(options?: VariableOptions): Expr {
+  return new Expr({
     kind: 'variable',
     id: newExprId(),
     shape: scalar(),
@@ -119,8 +119,8 @@ export function scalarVar(options?: VariableOptions): Expression {
  * const x = vectorVar(5, { name: 'x' });
  * ```
  */
-export function vectorVar(n: number, options?: VariableOptions): Expression {
-  return new Expression({
+export function vectorVar(n: number, options?: VariableOptions): Expr {
+  return new Expr({
     kind: 'variable',
     id: newExprId(),
     shape: vector(n),
@@ -139,8 +139,8 @@ export function vectorVar(n: number, options?: VariableOptions): Expression {
  * const X = matrixVar(3, 4, { name: 'X' });
  * ```
  */
-export function matrixVar(rows: number, cols: number, options?: VariableOptions): Expression {
-  return new Expression({
+export function matrixVar(rows: number, cols: number, options?: VariableOptions): Expr {
+  return new Expr({
     kind: 'variable',
     id: newExprId(),
     shape: matrix(rows, cols),
@@ -154,8 +154,8 @@ export function matrixVar(rows: number, cols: number, options?: VariableOptions)
  * Get the ID of a variable expression.
  * Throws if the expression is not a variable.
  */
-export function getVariableId(expr: Expr | Expression): ExprId {
-  const e = expr instanceof Expression ? expr.expr : expr;
+export function getVariableId(expr: ExprData | Expr): ExprId {
+  const e = expr instanceof Expr ? expr.data : expr;
   if (e.kind !== 'variable') {
     throw new Error(`Expected variable, got ${e.kind}`);
   }
@@ -165,7 +165,7 @@ export function getVariableId(expr: Expr | Expression): ExprId {
 /**
  * Check if an expression is a variable.
  */
-export function isVariable(expr: Expr | Expression): boolean {
-  const e = expr instanceof Expression ? expr.expr : expr;
+export function isVariable(expr: ExprData | Expr): boolean {
+  const e = expr instanceof Expr ? expr.data : expr;
   return e.kind === 'variable';
 }

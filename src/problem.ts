@@ -1,5 +1,4 @@
-import { Expr, ExprId, exprVariables, exprShape } from './expr/index.js';
-import { Expression } from './expr/expr-wrapper.js';
+import { ExprData, ExprId, exprVariables, exprShape, Expr } from './expr/index.js';
 import { size } from './expr/shape.js';
 import {
   Constraint,
@@ -56,7 +55,7 @@ export interface Solution {
    * const xVal = solution.valueOf(x);  // Float64Array
    * ```
    */
-  valueOf(expr: Expression | Expr): Float64Array | undefined;
+  valueOf(expr: Expr | ExprData): Float64Array | undefined;
 }
 
 /**
@@ -90,12 +89,12 @@ export interface SolverSettings {
  * ```
  */
 export class Problem {
-  private readonly _objective: Expr;
+  private readonly _objective: ExprData;
   private readonly _sense: ObjectiveSense;
   private _constraints: Constraint[] = [];
   private _settings: SolverSettings = {};
 
-  private constructor(objective: Expr, sense: ObjectiveSense) {
+  private constructor(objective: ExprData, sense: ObjectiveSense) {
     // Validate objective is scalar
     const objShape = exprShape(objective);
     if (!isScalar(objShape)) {
@@ -116,8 +115,8 @@ export class Problem {
    *   .solve();
    * ```
    */
-  static minimize(objective: Expr | Expression): Problem {
-    const obj = objective instanceof Expression ? objective.expr : objective;
+  static minimize(objective: ExprData | Expr): Problem {
+    const obj = objective instanceof Expr ? objective.data : objective;
     return new Problem(obj, 'minimize');
   }
 
@@ -131,8 +130,8 @@ export class Problem {
    *   .solve();
    * ```
    */
-  static maximize(objective: Expr | Expression): Problem {
-    const obj = objective instanceof Expression ? objective.expr : objective;
+  static maximize(objective: ExprData | Expr): Problem {
+    const obj = objective instanceof Expr ? objective.data : objective;
     return new Problem(obj, 'maximize');
   }
 
@@ -168,7 +167,7 @@ export class Problem {
   /**
    * Get the objective expression.
    */
-  get objective(): Expr {
+  get objective(): ExprData {
     return this._objective;
   }
 
@@ -338,8 +337,8 @@ export class Problem {
     }
 
     // Create valueOf function that looks up variable values
-    const valueOf = (expr: Expression | Expr): Float64Array | undefined => {
-      const e = expr instanceof Expression ? expr.expr : expr;
+    const valueOf = (expr: Expr | ExprData): Float64Array | undefined => {
+      const e = expr instanceof Expr ? expr.data : expr;
       if (e.kind !== 'variable') {
         return undefined;
       }
@@ -360,7 +359,7 @@ export class Problem {
   /**
    * Collect variable sizes from an expression.
    */
-  private collectVariableSizes(expr: Expr, sizes: Map<ExprId, number>): void {
+  private collectVariableSizes(expr: ExprData, sizes: Map<ExprId, number>): void {
     if (expr.kind === 'variable') {
       sizes.set(expr.id, size(expr.shape));
       return;

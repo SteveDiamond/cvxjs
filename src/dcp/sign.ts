@@ -1,4 +1,4 @@
-import { Expr, ArrayData, Expression } from '../expr/index.js';
+import { ExprData, ArrayData, Expr } from '../expr/index.js';
 
 /**
  * Sign of an expression.
@@ -95,8 +95,8 @@ export function arrayDataSign(data: ArrayData): Sign {
 /**
  * Compute the sign of an expression.
  */
-export function sign(input: Expr | Expression): Sign {
-  const expr = input instanceof Expression ? input.expr : input;
+export function sign(input: ExprData | Expr): Sign {
+  const expr = input instanceof Expr ? input.data : input;
   switch (expr.kind) {
     case 'variable':
       if (expr.nonneg) return Sign.Nonnegative;
@@ -217,13 +217,13 @@ export function sign(input: Expr | Expression): Sign {
 /**
  * Check if an expression is nonnegative.
  */
-export function exprIsNonnegative(expr: Expr): boolean {
+export function exprIsNonnegative(expr: ExprData | Expr): boolean {
   return isNonnegative(sign(expr));
 }
 
 /**
  * Check if an expression is nonpositive.
  */
-export function exprIsNonpositive(expr: Expr): boolean {
+export function exprIsNonpositive(expr: ExprData | Expr): boolean {
   return isNonpositive(sign(expr));
 }

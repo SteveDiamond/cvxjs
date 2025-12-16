@@ -1,4 +1,4 @@
-import { Expr, Expression } from '../expr/index.js';
+import { ExprData, Expr } from '../expr/index.js';
 
 /**
  * Curvature of an expression in disciplined convex programming.
@@ -88,8 +88,8 @@ export function scaleCurvature(c: Curvature, scalar: number): Curvature {
  * This is the core DCP analysis function that determines whether
  * an expression is convex, concave, affine, constant, or unknown.
  */
-export function curvature(input: Expr | Expression): Curvature {
-  const expr = input instanceof Expression ? input.expr : input;
+export function curvature(input: ExprData | Expr): Curvature {
+  const expr = input instanceof Expr ? input.data : input;
   switch (expr.kind) {
     // === Leaf nodes ===
     case 'variable':
@@ -368,20 +368,20 @@ export function curvature(input: Expr | Expression): Curvature {
 /**
  * Check if an expression is DCP-convex (can be minimized).
  */
-export function isDcpConvex(expr: Expr): boolean {
+export function isDcpConvex(expr: ExprData | Expr): boolean {
   return isConvex(curvature(expr));
 }
 
 /**
  * Check if an expression is DCP-concave (can be maximized).
  */
-export function isDcpConcave(expr: Expr): boolean {
+export function isDcpConcave(expr: ExprData | Expr): boolean {
   return isConcave(curvature(expr));
 }
 
 /**
  * Check if an expression is DCP-affine (can be used in equality constraints).
  */
-export function isDcpAffine(expr: Expr): boolean {
+export function isDcpAffine(expr: ExprData | Expr): boolean {
   return isAffine(curvature(expr));
 }

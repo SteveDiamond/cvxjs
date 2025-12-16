@@ -1,4 +1,4 @@
-import { Expr, ExprId, exprShape, newExprId, ArrayData, IndexRange, Expression } from '../expr/index.js';
+import { ExprData, ExprId, exprShape, newExprId, ArrayData, IndexRange, Expr } from '../expr/index.js';
 import { size, isScalar } from '../expr/shape.js';
 import { Constraint } from '../constraints/index.js';
 import {
@@ -121,8 +121,8 @@ export class Canonicalizer {
    * @param expr - Expression to canonicalize
    * @returns Canonical linear expression
    */
-  canonicalize(input: Expr | Expression): LinExpr {
-    const expr = input instanceof Expression ? input.expr : input;
+  canonicalize(input: ExprData | Expr): LinExpr {
+    const expr = input instanceof Expr ? input.data : input;
     switch (expr.kind) {
       // === Leaf nodes ===
       case 'variable':
@@ -752,7 +752,7 @@ export class Canonicalizer {
 
       default: {
         const _exhaustive: never = expr;
-        throw new DcpError(`Unknown expression kind: ${(expr as Expr).kind}`);
+        throw new DcpError(`Unknown expression kind: ${(expr as ExprData).kind}`);
       }
     }
   }
@@ -792,7 +792,8 @@ export class Canonicalizer {
    * @param expr - Expression to canonicalize
    * @returns Canonical expression (linear or quadratic)
    */
-  canonicalizeObjective(expr: Expr): CanonExpr {
+  canonicalizeObjective(input: ExprData | Expr): CanonExpr {
+    const expr = input instanceof Expr ? input.data : input;
     // Check for quadratic objective patterns
     if (expr.kind === 'sumSquares') {
       // ||x||^2 = x' I x - use native QP
@@ -915,7 +916,8 @@ export class Canonicalizer {
   /**
    * Get scalar constant value from expression.
    */
-  private getScalarConstant(expr: Expr): number {
+  private getScalarConstant(input: ExprData | Expr): number {
+    const expr = input instanceof Expr ? input.data : input;
     if (expr.kind !== 'constant') {
       throw new DcpError('Expected constant expression');
     }
@@ -932,7 +934,8 @@ export class Canonicalizer {
   /**
    * Convert expression to CSC matrix (must be constant).
    */
-  private exprToCscMatrix(expr: Expr): CscMatrix {
+  private exprToCscMatrix(input: ExprData | Expr): CscMatrix {
+    const expr = input instanceof Expr ? input.data : input;
     if (expr.kind !== 'constant') {
       throw new DcpError('Expected constant expression');
     }
@@ -1100,7 +1103,7 @@ export class Canonicalizer {
  * Canonicalize a problem to standard form.
  */
 export function canonicalizeProblem(
-  objective: Expr,
+  objective: ExprData | Expr,
   constraints: Constraint[],
   sense: 'minimize' | 'maximize'
 ): {

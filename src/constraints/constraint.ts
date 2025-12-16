@@ -1,7 +1,7 @@
-import { Expr, exprShape, exprVariables, ExprId } from '../expr/index.js';
-import { Expression } from '../expr/expr-wrapper.js';
+import { ExprData, exprShape, exprVariables, ExprId } from '../expr/index.js';
+import { Expr } from '../expr/expr-wrapper.js';
 import { curvature, isConcave, isAffine } from '../dcp/index.js';
-import { sub, toExpr } from '../atoms/affine.js';
+import { sub, toExprData } from '../atoms/affine.js';
 import { ShapeError, DcpError } from '../error.js';
 import { shapeToString, broadcastShape } from '../expr/shape.js';
 
@@ -13,9 +13,9 @@ import { shapeToString, broadcastShape } from '../expr/shape.js';
  * - SOC: Second-order cone constraint (||x||_2 <= t)
  */
 export type Constraint =
-  | { readonly kind: 'zero'; readonly expr: Expr }
-  | { readonly kind: 'nonneg'; readonly expr: Expr }
-  | { readonly kind: 'soc'; readonly t: Expr; readonly x: Expr };
+  | { readonly kind: 'zero'; readonly expr: ExprData }
+  | { readonly kind: 'nonneg'; readonly expr: ExprData }
+  | { readonly kind: 'soc'; readonly t: ExprData; readonly x: ExprData };
 
 /**
  * Create an equality constraint: lhs == rhs
@@ -25,9 +25,9 @@ export type Constraint =
  * eq(sum(x), 1)  // sum(x) == 1
  * ```
  */
-export function eq(lhs: Expr | Expression | number, rhs: Expr | Expression | number): Constraint {
-  const l = toExpr(lhs);
-  const r = toExpr(rhs);
+export function eq(lhs: ExprData | Expr | number, rhs: ExprData | Expr | number): Constraint {
+  const l = toExprData(lhs);
+  const r = toExprData(rhs);
 
   // Validate shapes are broadcastable
   const lShape = exprShape(l);
@@ -40,7 +40,7 @@ export function eq(lhs: Expr | Expression | number, rhs: Expr | Expression | num
     );
   }
 
-  return { kind: 'zero', expr: sub(l, r) };
+  return { kind: 'zero', expr: sub(l, r).data };
 }
 
 /**
@@ -52,9 +52,9 @@ export function eq(lhs: Expr | Expression | number, rhs: Expr | Expression | num
  * le(norm2(x), 1)  // ||x||_2 <= 1
  * ```
  */
-export function le(lhs: Expr | Expression | number, rhs: Expr | Expression | number): Constraint {
-  const l = toExpr(lhs);
-  const r = toExpr(rhs);
+export function le(lhs: ExprData | Expr | number, rhs: ExprData | Expr | number): Constraint {
+  const l = toExprData(lhs);
+  const r = toExprData(rhs);
 
   // Validate shapes are broadcastable
   const lShape = exprShape(l);
@@ -68,7 +68,7 @@ export function le(lhs: Expr | Expression | number, rhs: Expr | Expression | num
   }
 
   // lhs <= rhs  <==>  rhs - lhs >= 0
-  return { kind: 'nonneg', expr: sub(r, l) };
+  return { kind: 'nonneg', expr: sub(r, l).data };
 }
 
 /**
@@ -80,9 +80,9 @@ export function le(lhs: Expr | Expression | number, rhs: Expr | Expression | num
  * ge(sum(x), 1)  // sum(x) >= 1
  * ```
  */
-export function ge(lhs: Expr | Expression | number, rhs: Expr | Expression | number): Constraint {
-  const l = toExpr(lhs);
-  const r = toExpr(rhs);
+export function ge(lhs: ExprData | Expr | number, rhs: ExprData | Expr | number): Constraint {
+  const l = toExprData(lhs);
+  const r = toExprData(rhs);
 
   // Validate shapes are broadcastable
   const lShape = exprShape(l);
@@ -96,7 +96,7 @@ export function ge(lhs: Expr | Expression | number, rhs: Expr | Expression | num
   }
 
   // lhs >= rhs  <==>  lhs - rhs >= 0
-  return { kind: 'nonneg', expr: sub(l, r) };
+  return { kind: 'nonneg', expr: sub(l, r).data };
 }
 
 /**
@@ -107,8 +107,8 @@ export function ge(lhs: Expr | Expression | number, rhs: Expr | Expression | num
  * soc(norm2(x), t)  // ||x||_2 <= t
  * ```
  */
-export function soc(x: Expr | Expression, t: Expr | Expression | number): Constraint {
-  return { kind: 'soc', t: toExpr(t), x: toExpr(x) };
+export function soc(x: ExprData | Expr, t: ExprData | Expr | number): Constraint {
+  return { kind: 'soc', t: toExprData(t), x: toExprData(x) };
 }
 
 /**

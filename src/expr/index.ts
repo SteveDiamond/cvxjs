@@ -17,17 +17,34 @@ export {
 } from './shape.js';
 
 // Core expression types
-export type { ExprId, ArrayData, IndexRange, Expr } from './expression.js';
-export {
-  newExprId,
-  resetExprIds,
-  exprShape,
-  exprVariables,
-  isConstantExpr,
-  arrayDataSize,
-  isScalarData,
-  getScalarValue,
+export type { ExprId, ArrayData, IndexRange, ExprData } from './expression.js';
+export { newExprId, resetExprIds, arrayDataSize, isScalarData, getScalarValue } from './expression.js';
+import {
+  exprShape as exprShapeRaw,
+  exprVariables as exprVariablesRaw,
+  isConstantExpr as isConstantExprRaw,
 } from './expression.js';
+import type { ExprData, ExprId } from './expression.js';
+import type { Shape } from './shape.js';
+import { Expr } from './expr-wrapper.js';
+
+/** Get the shape of an expression (accepts both ExprData and Expr wrapper) */
+export function exprShape(expr: ExprData | Expr): Shape {
+  const data = expr instanceof Expr ? expr.data : expr;
+  return exprShapeRaw(data);
+}
+
+/** Get all variable IDs referenced in an expression (accepts both ExprData and Expr wrapper) */
+export function exprVariables(expr: ExprData | Expr): Set<ExprId> {
+  const data = expr instanceof Expr ? expr.data : expr;
+  return exprVariablesRaw(data);
+}
+
+/** Check if an expression is constant (accepts both ExprData and Expr wrapper) */
+export function isConstantExpr(expr: ExprData | Expr): boolean {
+  const data = expr instanceof Expr ? expr.data : expr;
+  return isConstantExprRaw(data);
+}
 
 // Variable creation
 export type { VariableOptions } from './variable.js';
@@ -58,5 +75,5 @@ export {
 } from './constant.js';
 
 // Expression wrapper class
-export { Expression, wrap, isExpression } from './expr-wrapper.js';
+export { Expr, wrap, isExpr } from './expr-wrapper.js';
 export type { ExprInput, ArrayInput } from './expr-wrapper.js';

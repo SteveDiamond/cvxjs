@@ -27,7 +27,7 @@
  */
 
 // === Expression Types ===
-export type { Shape, ExprId, ArrayData, IndexRange, Expr } from './expr/index.js';
+export type { Shape, ExprId, ArrayData, IndexRange, ExprData } from './expr/index.js';
 
 // === Shape Utilities ===
 export {
@@ -62,7 +62,7 @@ export { constant, zeros, ones, eye, isConstant } from './expr/index.js';
 export { exprShape, exprVariables, isConstantExpr, resetExprIds } from './expr/index.js';
 
 // === Expression Wrapper ===
-export { Expression, wrap, isExpression } from './expr/index.js';
+export { Expr, wrap, isExpr } from './expr/index.js';
 export type { ExprInput, ArrayInput } from './expr/index.js';
 
 // === Affine Atoms ===

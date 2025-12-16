@@ -1047,26 +1047,6 @@
 
       const points = [];
 
-      // Add single-asset portfolios as reference points (they're on the frontier boundary)
-      if (!allowShort) {
-        for (let i = 0; i < mu.length; i++) {
-          const weights = new Array(mu.length).fill(0);
-          weights[i] = 1;
-          // Compute variance for 100% in asset i
-          let variance = 0;
-          for (let j = 0; j < mu.length; j++) {
-            for (let k = 0; k < mu.length; k++) {
-              variance += weights[j] * weights[k] * Sigma[j][k];
-            }
-          }
-          points.push({
-            return: mu[i],
-            risk: Math.sqrt(variance),
-            weights: weights
-          });
-        }
-      }
-
       // Compute frontier points
       for (let i = 0; i < numPoints; i++) {
         const targetReturn = minReturn + (maxReturn - minReturn) * i / (numPoints - 1);
@@ -1085,45 +1065,9 @@
         }
       }
 
-      // Sort by return
-      points.sort((a, b) => a.return - b.return);
-
-      // Filter to efficient frontier: for each return level, keep only minimum risk
-      // Also ensure monotonically decreasing risk as we go up (efficient frontier property)
-      const byReturn = new Map();
-      for (const p of points) {
-        const key = p.return.toFixed(4);
-        if (!byReturn.has(key) || byReturn.get(key).risk > p.risk) {
-          byReturn.set(key, p);
-        }
-      }
-
-      // Get points sorted by return
-      const candidates = Array.from(byReturn.values()).sort((a, b) => a.return - b.return);
-
-      // Build efficient frontier: only keep points where risk increases as return increases
-      // (after the minimum variance point)
-      const efficient = [];
-      let minRiskSeen = Infinity;
-      let foundMinVariance = false;
-
-      for (const p of candidates) {
-        if (p.risk < minRiskSeen) {
-          minRiskSeen = p.risk;
-          efficient.push(p);
-        } else if (p.risk <= minRiskSeen * 1.01) {
-          // Allow small tolerance for numerical issues
-          efficient.push(p);
-        } else if (foundMinVariance || p.return > candidates[0].return) {
-          // After min variance, risk should increase with return
-          foundMinVariance = true;
-          if (efficient.length === 0 || p.risk >= efficient[efficient.length - 1].risk * 0.99) {
-            efficient.push(p);
-          }
-        }
-      }
-
-      return efficient;
+      // Sort by risk (x-axis) for proper line drawing
+      points.sort((a, b) => a.risk - b.risk);
+      return points;
     }
 
     async function recomputeFrontier() {

@@ -9,6 +9,7 @@ wasm/target/
 
 # Claude Code local settings
 .claude/
+.playwright-mcp/
 
 # IDE
 .idea/
@@ -33,3 +34,11 @@ npm-debug.log*
 
 # TypeScript
 *.tsbuildinfo
+
+# Downloaded data files
+*.xlsx
+*.csv
+
+# Temporary files
+tmp/
+temp/

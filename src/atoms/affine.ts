@@ -9,8 +9,10 @@ import {
   matrix,
   vector,
 } from '../expr/index.js';
-import { constant } from '../expr/constant.js';
+import { toArrayData } from '../expr/constant.js';
+import { Expression } from '../expr/expr-wrapper.js';
 import { ShapeError } from '../error.js';
+import { newExprId } from '../expr/expression.js';
 
 /**
  * Add two expressions.
@@ -20,7 +22,7 @@ import { ShapeError } from '../error.js';
  * const z = add(x, y);
  * ```
  */
-export function add(left: Expr | number, right: Expr | number): Expr {
+export function add(left: Expr | Expression | number, right: Expr | Expression | number): Expression {
   const l = toExpr(left);
   const r = toExpr(right);
 
@@ -36,7 +38,7 @@ export function add(left: Expr | number, right: Expr | number): Expr {
     );
   }
 
-  return { kind: 'add', left: l, right: r };
+  return new Expression({ kind: 'add', left: l, right: r });
 }
 
 /**
@@ -47,7 +49,7 @@ export function add(left: Expr | number, right: Expr | number): Expr {
  * const z = sub(x, y);  // x - y
  * ```
  */
-export function sub(left: Expr | number, right: Expr | number): Expr {
+export function sub(left: Expr | Expression | number, right: Expr | Expression | number): Expression {
   return add(left, neg(toExpr(right)));
 }
 
@@ -59,12 +61,13 @@ export function sub(left: Expr | number, right: Expr | number): Expr {
  * const y = neg(x);  // -x
  * ```
  */
-export function neg(arg: Expr): Expr {
+export function neg(arg: Expr | Expression): Expression {
+  const a = toExpr(arg);
   // Optimization: double negation cancels
-  if (arg.kind === 'neg') {
-    return arg.arg;
+  if (a.kind === 'neg') {
+    return new Expression(a.arg);
   }
-  return { kind: 'neg', arg };
+  return new Expression({ kind: 'neg', arg: a });
 }
 
 /**
@@ -77,11 +80,11 @@ export function neg(arg: Expr): Expr {
  * const z = mul(x, c);      // x * c (c is constant)
  * ```
  */
-export function mul(left: Expr | number, right: Expr | number): Expr {
+export function mul(left: Expr | Expression | number, right: Expr | Expression | number): Expression {
   const l = toExpr(left);
   const r = toExpr(right);
 
-  return { kind: 'mul', left: l, right: r };
+  return new Expression({ kind: 'mul', left: l, right: r });
 }
 
 /**
@@ -92,11 +95,11 @@ export function mul(left: Expr | number, right: Expr | number): Expr {
  * const z = div(x, 2);  // x / 2
  * ```
  */
-export function div(left: Expr | number, right: Expr | number): Expr {
+export function div(left: Expr | Expression | number, right: Expr | Expression | number): Expression {
   const l = toExpr(left);
   const r = toExpr(right);
 
-  return { kind: 'div', left: l, right: r };
+  return new Expression({ kind: 'div', left: l, right: r });
 }
 
 /**
@@ -107,9 +110,11 @@ export function div(left: Expr | number, right: Expr | number): Expr {
  * const z = matmul(A, x);  // A @ x
  * ```
  */
-export function matmul(left: Expr, right: Expr): Expr {
-  const lShape = exprShape(left);
-  const rShape = exprShape(right);
+export function matmul(left: Expr | Expression, right: Expr | Expression): Expression {
+  const l = toExpr(left);
+  const r = toExpr(right);
+  const lShape = exprShape(l);
+  const rShape = exprShape(r);
 
   // Validate dimensions
   const lCols = lShape.dims.length === 1 ? lShape.dims[0] : lShape.dims[1];
@@ -123,7 +128,7 @@ export function matmul(left: Expr, right: Expr): Expr {
     );
   }
 
-  return { kind: 'matmul', left, right };
+  return new Expression({ kind: 'matmul', left: l, right: r });
 }
 
 /**
@@ -136,14 +141,15 @@ export function matmul(left: Expr, right: Expr): Expr {
  * const s = sum(A, 1);        // Sum along columns (row sums)
  * ```
  */
-export function sum(arg: Expr, axis?: number): Expr {
+export function sum(arg: Expr | Expression, axis?: number): Expression {
+  const a = toExpr(arg);
   if (axis !== undefined) {
-    const shape = exprShape(arg);
+    const shape = exprShape(a);
     if (axis < 0 || axis >= shape.dims.length) {
       throw new Error(`Invalid axis ${axis} for shape ${shapeToString(shape)}`);
     }
   }
-  return { kind: 'sum', arg, axis };
+  return new Expression({ kind: 'sum', arg: a, axis });
 }
 
 /**
@@ -154,8 +160,9 @@ export function sum(arg: Expr, axis?: number): Expr {
  * const M = reshape(x, [3, 4]);  // Reshape to 3x4 matrix
  * ```
  */
-export function reshape(arg: Expr, shape: readonly [number] | readonly [number, number]): Expr {
-  const argShape = exprShape(arg);
+export function reshape(arg: Expr | Expression, shape: readonly [number] | readonly [number, number]): Expression {
+  const a = toExpr(arg);
+  const argShape = exprShape(a);
   const newShape: Shape = shape.length === 1 ? vector(shape[0]) : matrix(shape[0], shape[1]);
 
   if (size(argShape) !== size(newShape)) {
@@ -166,7 +173,7 @@ export function reshape(arg: Expr, shape: readonly [number] | readonly [number, 
     );
   }
 
-  return { kind: 'reshape', arg, shape: newShape };
+  return new Expression({ kind: 'reshape', arg: a, shape: newShape });
 }
 
 /**
@@ -179,7 +186,8 @@ export function reshape(arg: Expr, shape: readonly [number] | readonly [number, 
  * const y = index(A, 0, [1, 4]);   // A[0, 1:4]
  * ```
  */
-export function index(arg: Expr, ...indices: (number | readonly [number, number] | 'all')[]): Expr {
+export function index(arg: Expr | Expression, ...indices: (number | readonly [number, number] | 'all')[]): Expression {
+  const a = toExpr(arg);
   const ranges: IndexRange[] = indices.map((idx) => {
     if (idx === 'all') {
       return { type: 'all' };
@@ -190,7 +198,7 @@ export function index(arg: Expr, ...indices: (number | readonly [number, number]
     return { type: 'range', start: idx[0], stop: idx[1] };
   });
 
-  return { kind: 'index', arg, ranges };
+  return new Expression({ kind: 'index', arg: a, ranges });
 }
 
 /**
@@ -201,14 +209,15 @@ export function index(arg: Expr, ...indices: (number | readonly [number, number]
  * const M = vstack(x, y, z);  // Stack vectors vertically
  * ```
  */
-export function vstack(...args: Expr[]): Expr {
+export function vstack(...args: (Expr | Expression)[]): Expression {
   if (args.length === 0) {
     throw new Error('vstack requires at least one argument');
   }
-  if (args.length === 1) {
-    return args[0]!;
+  const exprs = args.map(toExpr);
+  if (exprs.length === 1) {
+    return new Expression(exprs[0]!);
   }
-  return { kind: 'vstack', args };
+  return new Expression({ kind: 'vstack', args: exprs });
 }
 
 /**
@@ -219,14 +228,15 @@ export function vstack(...args: Expr[]): Expr {
  * const M = hstack(x, y, z);  // Stack vectors horizontally
  * ```
  */
-export function hstack(...args: Expr[]): Expr {
+export function hstack(...args: (Expr | Expression)[]): Expression {
   if (args.length === 0) {
     throw new Error('hstack requires at least one argument');
   }
-  if (args.length === 1) {
-    return args[0]!;
+  const exprs = args.map(toExpr);
+  if (exprs.length === 1) {
+    return new Expression(exprs[0]!);
   }
-  return { kind: 'hstack', args };
+  return new Expression({ kind: 'hstack', args: exprs });
 }
 
 /**
@@ -237,12 +247,13 @@ export function hstack(...args: Expr[]): Expr {
  * const At = transpose(A);  // A'
  * ```
  */
-export function transpose(arg: Expr): Expr {
+export function transpose(arg: Expr | Expression): Expression {
+  const a = toExpr(arg);
   // Optimization: double transpose cancels
-  if (arg.kind === 'transpose') {
-    return arg.arg;
+  if (a.kind === 'transpose') {
+    return new Expression(a.arg);
   }
-  return { kind: 'transpose', arg };
+  return new Expression({ kind: 'transpose', arg: a });
 }
 
 /**
@@ -253,12 +264,13 @@ export function transpose(arg: Expr): Expr {
  * const t = trace(A);  // tr(A)
  * ```
  */
-export function trace(arg: Expr): Expr {
-  const shape = exprShape(arg);
+export function trace(arg: Expr | Expression): Expression {
+  const a = toExpr(arg);
+  const shape = exprShape(a);
   if (shape.dims.length !== 2 || shape.dims[0] !== shape.dims[1]) {
     throw new ShapeError('trace requires a square matrix', 'square matrix', shapeToString(shape));
   }
-  return { kind: 'trace', arg };
+  return new Expression({ kind: 'trace', arg: a });
 }
 
 /**
@@ -270,8 +282,9 @@ export function trace(arg: Expr): Expr {
  * const D = diag(v);   // Create diagonal matrix from vector v
  * ```
  */
-export function diag(arg: Expr): Expr {
-  return { kind: 'diag', arg };
+export function diag(arg: Expr | Expression): Expression {
+  const a = toExpr(arg);
+  return new Expression({ kind: 'diag', arg: a });
 }
 
 /**
@@ -287,8 +300,9 @@ export function diag(arg: Expr): Expr {
  * const cs = cumsum(A, 1);     // Cumulative sum along rows
  * ```
  */
-export function cumsum(arg: Expr, axis?: number): Expr {
-  return { kind: 'cumsum', arg, axis };
+export function cumsum(arg: Expr | Expression, axis?: number): Expression {
+  const a = toExpr(arg);
+  return new Expression({ kind: 'cumsum', arg: a, axis });
 }
 
 /**
@@ -299,9 +313,11 @@ export function cumsum(arg: Expr, axis?: number): Expr {
  * const d = dot(x, y);  // x' * y
  * ```
  */
-export function dot(left: Expr, right: Expr): Expr {
-  const lShape = exprShape(left);
-  const rShape = exprShape(right);
+export function dot(left: Expr | Expression, right: Expr | Expression): Expression {
+  const l = toExpr(left);
+  const r = toExpr(right);
+  const lShape = exprShape(l);
+  const rShape = exprShape(r);
 
   if (lShape.dims.length !== 1 || rShape.dims.length !== 1) {
     throw new ShapeError(
@@ -319,15 +335,22 @@ export function dot(left: Expr, right: Expr): Expr {
     );
   }
 
-  return sum(mul(left, right));
+  return sum(mul(l, r));
 }
 
 /**
- * Convert a number or Expr to an Expr.
+ * Convert a number, Expr, or Expression to an Expr.
  */
-export function toExpr(value: Expr | number): Expr {
+export function toExpr(value: Expr | Expression | number): Expr {
+  if (value instanceof Expression) {
+    return value.expr;
+  }
   if (typeof value === 'number') {
-    return constant(value);
+    return {
+      kind: 'constant',
+      id: newExprId(),
+      value: toArrayData(value),
+    };
   }
   return value;
 }

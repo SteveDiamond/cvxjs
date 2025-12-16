@@ -1,5 +1,7 @@
 import { Expr, exprShape, shapeToString } from '../expr/index.js';
+import { Expression } from '../expr/expr-wrapper.js';
 import { ShapeError } from '../error.js';
+import { toExpr } from './affine.js';
 
 /**
  * L1 norm (sum of absolute values).
@@ -9,8 +11,8 @@ import { ShapeError } from '../error.js';
  * const n = norm1(x);  // ||x||_1 = sum(|x_i|)
  * ```
  */
-export function norm1(arg: Expr): Expr {
-  return { kind: 'norm1', arg };
+export function norm1(arg: Expr | Expression): Expression {
+  return new Expression({ kind: 'norm1', arg: toExpr(arg) });
 }
 
 /**
@@ -21,8 +23,8 @@ export function norm1(arg: Expr): Expr {
  * const n = norm2(x);  // ||x||_2 = sqrt(sum(x_i^2))
  * ```
  */
-export function norm2(arg: Expr): Expr {
-  return { kind: 'norm2', arg };
+export function norm2(arg: Expr | Expression): Expression {
+  return new Expression({ kind: 'norm2', arg: toExpr(arg) });
 }
 
 /**
@@ -33,8 +35,8 @@ export function norm2(arg: Expr): Expr {
  * const n = normInf(x);  // ||x||_inf = max(|x_i|)
  * ```
  */
-export function normInf(arg: Expr): Expr {
-  return { kind: 'normInf', arg };
+export function normInf(arg: Expr | Expression): Expression {
+  return new Expression({ kind: 'normInf', arg: toExpr(arg) });
 }
 
 /**
@@ -47,7 +49,7 @@ export function normInf(arg: Expr): Expr {
  * const n = norm(x, Inf);  // Infinity norm
  * ```
  */
-export function norm(arg: Expr, p: 1 | 2 | typeof Infinity = 2): Expr {
+export function norm(arg: Expr | Expression, p: 1 | 2 | typeof Infinity = 2): Expression {
   switch (p) {
     case 1:
       return norm1(arg);
@@ -68,8 +70,8 @@ export function norm(arg: Expr, p: 1 | 2 | typeof Infinity = 2): Expr {
  * const y = abs(x);  // |x|
  * ```
  */
-export function abs(arg: Expr): Expr {
-  return { kind: 'abs', arg };
+export function abs(arg: Expr | Expression): Expression {
+  return new Expression({ kind: 'abs', arg: toExpr(arg) });
 }
 
 /**
@@ -80,8 +82,8 @@ export function abs(arg: Expr): Expr {
  * const y = pos(x);  // max(x, 0)
  * ```
  */
-export function pos(arg: Expr): Expr {
-  return { kind: 'pos', arg };
+export function pos(arg: Expr | Expression): Expression {
+  return new Expression({ kind: 'pos', arg: toExpr(arg) });
 }
 
 /**
@@ -95,8 +97,8 @@ export function pos(arg: Expr): Expr {
  * const y = negPart(x);  // max(-x, 0)
  * ```
  */
-export function negPart(arg: Expr): Expr {
-  return { kind: 'negPart', arg };
+export function negPart(arg: Expr | Expression): Expression {
+  return new Expression({ kind: 'negPart', arg: toExpr(arg) });
 }
 
 /**
@@ -108,14 +110,15 @@ export function negPart(arg: Expr): Expr {
  * const z = maximum(x, y, z);  // Element-wise max of 3
  * ```
  */
-export function maximum(...args: Expr[]): Expr {
+export function maximum(...args: (Expr | Expression)[]): Expression {
   if (args.length === 0) {
     throw new Error('maximum requires at least one argument');
   }
-  if (args.length === 1) {
-    return args[0]!;
+  const exprs = args.map(toExpr);
+  if (exprs.length === 1) {
+    return new Expression(exprs[0]!);
   }
-  return { kind: 'maximum', args };
+  return new Expression({ kind: 'maximum', args: exprs });
 }
 
 /**
@@ -127,14 +130,15 @@ export function maximum(...args: Expr[]): Expr {
  * const z = minimum(x, y, z);  // Element-wise min of 3
  * ```
  */
-export function minimum(...args: Expr[]): Expr {
+export function minimum(...args: (Expr | Expression)[]): Expression {
   if (args.length === 0) {
     throw new Error('minimum requires at least one argument');
   }
-  if (args.length === 1) {
-    return args[0]!;
+  const exprs = args.map(toExpr);
+  if (exprs.length === 1) {
+    return new Expression(exprs[0]!);
   }
-  return { kind: 'minimum', args };
+  return new Expression({ kind: 'minimum', args: exprs });
 }
 
 /**
@@ -145,8 +149,8 @@ export function minimum(...args: Expr[]): Expr {
  * const s = sumSquares(x);  // ||x||_2^2
  * ```
  */
-export function sumSquares(arg: Expr): Expr {
-  return { kind: 'sumSquares', arg };
+export function sumSquares(arg: Expr | Expression): Expression {
+  return new Expression({ kind: 'sumSquares', arg: toExpr(arg) });
 }
 
 /**
@@ -157,10 +161,12 @@ export function sumSquares(arg: Expr): Expr {
  * const q = quadForm(x, P);  // x' * P * x
  * ```
  */
-export function quadForm(x: Expr, P: Expr): Expr {
+export function quadForm(x: Expr | Expression, P: Expr | Expression): Expression {
+  const xExpr = toExpr(x);
+  const PExpr = toExpr(P);
   // Validate shapes
-  const xShape = exprShape(x);
-  const PShape = exprShape(P);
+  const xShape = exprShape(xExpr);
+  const PShape = exprShape(PExpr);
 
   if (xShape.dims.length !== 1) {
     throw new ShapeError('quadForm requires vector x', 'vector', shapeToString(xShape));
@@ -182,7 +188,7 @@ export function quadForm(x: Expr, P: Expr): Expr {
   // Note: For DCP compliance, P must be constant and PSD
   // This is checked during curvature analysis
 
-  return { kind: 'quadForm', x, P };
+  return new Expression({ kind: 'quadForm', x: xExpr, P: PExpr });
 }
 
 /**
@@ -193,8 +199,8 @@ export function quadForm(x: Expr, P: Expr): Expr {
  * const q = quadOverLin(x, y);  // ||x||^2 / y
  * ```
  */
-export function quadOverLin(x: Expr, y: Expr): Expr {
-  return { kind: 'quadOverLin', x, y };
+export function quadOverLin(x: Expr | Expression, y: Expr | Expression): Expression {
+  return new Expression({ kind: 'quadOverLin', x: toExpr(x), y: toExpr(y) });
 }
 
 /**
@@ -207,8 +213,8 @@ export function quadOverLin(x: Expr, y: Expr): Expr {
  * const y = exp(x);  // e^x
  * ```
  */
-export function exp(arg: Expr): Expr {
-  return { kind: 'exp', arg };
+export function exp(arg: Expr | Expression): Expression {
+  return new Expression({ kind: 'exp', arg: toExpr(arg) });
 }
 
 /**
@@ -222,8 +228,8 @@ export function exp(arg: Expr): Expr {
  * const y = log(x);  // ln(x)
  * ```
  */
-export function log(arg: Expr): Expr {
-  return { kind: 'log', arg };
+export function log(arg: Expr | Expression): Expression {
+  return new Expression({ kind: 'log', arg: toExpr(arg) });
 }
 
 /**
@@ -237,8 +243,8 @@ export function log(arg: Expr): Expr {
  * const y = entropy(x);  // -x * log(x)
  * ```
  */
-export function entropy(arg: Expr): Expr {
-  return { kind: 'entropy', arg };
+export function entropy(arg: Expr | Expression): Expression {
+  return new Expression({ kind: 'entropy', arg: toExpr(arg) });
 }
 
 /**
@@ -252,8 +258,8 @@ export function entropy(arg: Expr): Expr {
  * const y = sqrt(x);  // sqrt(x)
  * ```
  */
-export function sqrt(arg: Expr): Expr {
-  return { kind: 'sqrt', arg };
+export function sqrt(arg: Expr | Expression): Expression {
+  return new Expression({ kind: 'sqrt', arg: toExpr(arg) });
 }
 
 /**
@@ -272,11 +278,12 @@ export function sqrt(arg: Expr): Expr {
  * const y = power(x, -1);   // x^(-1) = 1/x, convex
  * ```
  */
-export function power(arg: Expr, p: number): Expr {
+export function power(arg: Expr | Expression, p: number): Expression {
+  const a = toExpr(arg);
   // Special case: p = 1 is identity
   if (p === 1) {
-    return arg;
+    return new Expression(a);
   }
   // Special case: p = 0 is constant 1 (handled during evaluation)
-  return { kind: 'power', arg, p };
+  return new Expression({ kind: 'power', arg: a, p });
 }

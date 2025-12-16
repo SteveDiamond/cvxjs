@@ -1,4 +1,4 @@
-import { Expr, ExprId, exprShape, newExprId, ArrayData, IndexRange } from '../expr/index.js';
+import { Expr, ExprId, exprShape, newExprId, ArrayData, IndexRange, Expression } from '../expr/index.js';
 import { size, isScalar } from '../expr/shape.js';
 import { Constraint } from '../constraints/index.js';
 import {
@@ -121,7 +121,8 @@ export class Canonicalizer {
    * @param expr - Expression to canonicalize
    * @returns Canonical linear expression
    */
-  canonicalize(expr: Expr): LinExpr {
+  canonicalize(input: Expr | Expression): LinExpr {
+    const expr = input instanceof Expression ? input.expr : input;
     switch (expr.kind) {
       // === Leaf nodes ===
       case 'variable':

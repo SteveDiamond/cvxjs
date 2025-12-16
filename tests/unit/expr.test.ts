@@ -43,19 +43,19 @@ describe('Variable', () => {
 
   it('creates variable with options', () => {
     const x = variable(5, { name: 'x', nonneg: true });
-    expect(x.kind).toBe('variable');
-    if (x.kind === 'variable') {
-      expect(x.name).toBe('x');
-      expect(x.nonneg).toBe(true);
-      expect(x.nonpos).toBeUndefined();
+    expect(x.expr.kind).toBe('variable');
+    if (x.expr.kind === 'variable') {
+      expect(x.expr.name).toBe('x');
+      expect(x.expr.nonneg).toBe(true);
+      expect(x.expr.nonpos).toBeUndefined();
     }
   });
 
   it('generates unique IDs', () => {
     const x = variable(5);
     const y = variable(5);
-    if (x.kind === 'variable' && y.kind === 'variable') {
-      expect(x.id).not.toBe(y.id);
+    if (x.expr.kind === 'variable' && y.expr.kind === 'variable') {
+      expect(x.expr.id).not.toBe(y.expr.id);
     }
   });
 });
@@ -68,10 +68,10 @@ describe('Constant', () => {
   it('creates scalar constant', () => {
     const c = constant(5);
     expect(isConstant(c)).toBe(true);
-    if (c.kind === 'constant') {
-      expect(c.value.type).toBe('scalar');
-      if (c.value.type === 'scalar') {
-        expect(c.value.value).toBe(5);
+    if (c.expr.kind === 'constant') {
+      expect(c.expr.value.type).toBe('scalar');
+      if (c.expr.value.type === 'scalar') {
+        expect(c.expr.value.value).toBe(5);
       }
     }
   });
@@ -166,8 +166,8 @@ describe('Expression utilities', () => {
       const x = variable(5);
       const vars = exprVariables(x);
       expect(vars.size).toBe(1);
-      if (x.kind === 'variable') {
-        expect(vars.has(x.id)).toBe(true);
+      if (x.expr.kind === 'variable') {
+        expect(vars.has(x.expr.id)).toBe(true);
       }
     });
 

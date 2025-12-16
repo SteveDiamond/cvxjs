@@ -1,4 +1,5 @@
 import { Expr, exprShape, exprVariables, ExprId } from '../expr/index.js';
+import { Expression } from '../expr/expr-wrapper.js';
 import { curvature, isConcave, isAffine } from '../dcp/index.js';
 import { sub, toExpr } from '../atoms/affine.js';
 import { ShapeError, DcpError } from '../error.js';
@@ -24,7 +25,7 @@ export type Constraint =
  * eq(sum(x), 1)  // sum(x) == 1
  * ```
  */
-export function eq(lhs: Expr | number, rhs: Expr | number): Constraint {
+export function eq(lhs: Expr | Expression | number, rhs: Expr | Expression | number): Constraint {
   const l = toExpr(lhs);
   const r = toExpr(rhs);
 
@@ -51,7 +52,7 @@ export function eq(lhs: Expr | number, rhs: Expr | number): Constraint {
  * le(norm2(x), 1)  // ||x||_2 <= 1
  * ```
  */
-export function le(lhs: Expr | number, rhs: Expr | number): Constraint {
+export function le(lhs: Expr | Expression | number, rhs: Expr | Expression | number): Constraint {
   const l = toExpr(lhs);
   const r = toExpr(rhs);
 
@@ -79,7 +80,7 @@ export function le(lhs: Expr | number, rhs: Expr | number): Constraint {
  * ge(sum(x), 1)  // sum(x) >= 1
  * ```
  */
-export function ge(lhs: Expr | number, rhs: Expr | number): Constraint {
+export function ge(lhs: Expr | Expression | number, rhs: Expr | Expression | number): Constraint {
   const l = toExpr(lhs);
   const r = toExpr(rhs);
 
@@ -106,8 +107,8 @@ export function ge(lhs: Expr | number, rhs: Expr | number): Constraint {
  * soc(norm2(x), t)  // ||x||_2 <= t
  * ```
  */
-export function soc(x: Expr, t: Expr | number): Constraint {
-  return { kind: 'soc', t: toExpr(t), x };
+export function soc(x: Expr | Expression, t: Expr | Expression | number): Constraint {
+  return { kind: 'soc', t: toExpr(t), x: toExpr(x) };
 }
 
 /**

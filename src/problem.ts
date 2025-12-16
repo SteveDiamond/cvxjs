@@ -1,4 +1,5 @@
 import { Expr, ExprId, exprVariables, exprShape } from './expr/index.js';
+import { Expression } from './expr/expr-wrapper.js';
 import { size } from './expr/shape.js';
 import {
   Constraint,
@@ -44,6 +45,18 @@ export interface Solution {
   readonly solveTime?: number;
   /** Number of iterations */
   readonly iterations?: number;
+
+  /**
+   * Get the solution value for a variable.
+   *
+   * @example
+   * ```ts
+   * const x = variable(5);
+   * const solution = await Problem.minimize(x.sum()).solve();
+   * const xVal = solution.valueOf(x);  // Float64Array
+   * ```
+   */
+  valueOf(expr: Expression | Expr): Float64Array | undefined;
 }
 
 /**
@@ -103,8 +116,9 @@ export class Problem {
    *   .solve();
    * ```
    */
-  static minimize(objective: Expr): Problem {
-    return new Problem(objective, 'minimize');
+  static minimize(objective: Expr | Expression): Problem {
+    const obj = objective instanceof Expression ? objective.expr : objective;
+    return new Problem(obj, 'minimize');
   }
 
   /**
@@ -117,8 +131,9 @@ export class Problem {
    *   .solve();
    * ```
    */
-  static maximize(objective: Expr): Problem {
-    return new Problem(objective, 'maximize');
+  static maximize(objective: Expr | Expression): Problem {
+    const obj = objective instanceof Expression ? objective.expr : objective;
+    return new Problem(obj, 'maximize');
   }
 
   /**
@@ -322,6 +337,15 @@ export class Problem {
       }
     }
 
+    // Create valueOf function that looks up variable values
+    const valueOf = (expr: Expression | Expr): Float64Array | undefined => {
+      const e = expr instanceof Expression ? expr.expr : expr;
+      if (e.kind !== 'variable') {
+        return undefined;
+      }
+      return primal?.get(e.id);
+    };
+
     return {
       status: result.status,
       value,
@@ -329,6 +353,7 @@ export class Problem {
       dual: result.z ?? undefined,
       solveTime: result.solveTime,
       iterations: result.iterations,
+      valueOf,
     };
   }
 

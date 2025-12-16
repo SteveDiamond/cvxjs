@@ -3,17 +3,24 @@
  *
  * @example
  * ```ts
- * import { variable, sum, norm2, Problem } from 'cvxjs';
+ * import { variable, constant, Problem } from 'cvxjs';
  *
- * // Create a variable
+ * // Create variables and constants
  * const x = variable(5);
+ * const A = constant([[1, 2, 3, 4, 5]]);
  *
- * // Build and solve a problem
- * const solution = await Problem.minimize(sum(x))
- *   .subjectTo([x.ge(1)])
+ * // Build expressions with fluent method chaining
+ * const residual = A.matmul(x).sub(10);
+ * const objective = residual.norm2().add(x.norm1().mul(0.1));
+ *
+ * // Solve with fluent constraints
+ * const solution = await Problem.minimize(objective)
+ *   .subjectTo([x.ge(0), x.sum().le(10)])
  *   .solve();
  *
+ * // Access results
  * console.log('Optimal value:', solution.value);
+ * console.log('x =', solution.valueOf(x));
  * ```
  *
  * @packageDocumentation
@@ -53,6 +60,10 @@ export { constant, zeros, ones, eye, isConstant } from './expr/index.js';
 
 // === Expression Utilities ===
 export { exprShape, exprVariables, isConstantExpr, resetExprIds } from './expr/index.js';
+
+// === Expression Wrapper ===
+export { Expression, wrap, isExpression } from './expr/index.js';
+export type { ExprInput, ArrayInput } from './expr/index.js';
 
 // === Affine Atoms ===
 export {

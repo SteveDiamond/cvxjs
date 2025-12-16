@@ -1,5 +1,6 @@
 import { Expr, ExprId, newExprId } from './expression.js';
 import { Shape, normalizeShape, vector, matrix, scalar } from './shape.js';
+import { Expression } from './expr-wrapper.js';
 
 /**
  * Options for variable creation.
@@ -53,15 +54,15 @@ export class VariableBuilder {
   }
 
   /** Build the variable expression */
-  build(): Expr {
-    return {
+  build(): Expression {
+    return new Expression({
       kind: 'variable',
       id: newExprId(),
       shape: this._shape,
       name: this._name,
       nonneg: this._nonneg || undefined,
       nonpos: this._nonpos || undefined,
-    };
+    });
   }
 }
 
@@ -81,7 +82,7 @@ export class VariableBuilder {
 export function variable(
   shape: number | readonly [number] | readonly [number, number],
   options?: VariableOptions
-): Expr {
+): Expression {
   const builder = new VariableBuilder(shape);
   if (options?.name) builder.name(options.name);
   if (options?.nonneg) builder.nonneg();
@@ -98,15 +99,15 @@ export function variable(
  * const t = scalarVar({ name: 't', nonneg: true });
  * ```
  */
-export function scalarVar(options?: VariableOptions): Expr {
-  return {
+export function scalarVar(options?: VariableOptions): Expression {
+  return new Expression({
     kind: 'variable',
     id: newExprId(),
     shape: scalar(),
     name: options?.name,
     nonneg: options?.nonneg,
     nonpos: options?.nonpos,
-  };
+  });
 }
 
 /**
@@ -118,15 +119,15 @@ export function scalarVar(options?: VariableOptions): Expr {
  * const x = vectorVar(5, { name: 'x' });
  * ```
  */
-export function vectorVar(n: number, options?: VariableOptions): Expr {
-  return {
+export function vectorVar(n: number, options?: VariableOptions): Expression {
+  return new Expression({
     kind: 'variable',
     id: newExprId(),
     shape: vector(n),
     name: options?.name,
     nonneg: options?.nonneg,
     nonpos: options?.nonpos,
-  };
+  });
 }
 
 /**
@@ -138,31 +139,33 @@ export function vectorVar(n: number, options?: VariableOptions): Expr {
  * const X = matrixVar(3, 4, { name: 'X' });
  * ```
  */
-export function matrixVar(rows: number, cols: number, options?: VariableOptions): Expr {
-  return {
+export function matrixVar(rows: number, cols: number, options?: VariableOptions): Expression {
+  return new Expression({
     kind: 'variable',
     id: newExprId(),
     shape: matrix(rows, cols),
     name: options?.name,
     nonneg: options?.nonneg,
     nonpos: options?.nonpos,
-  };
+  });
 }
 
 /**
  * Get the ID of a variable expression.
  * Throws if the expression is not a variable.
  */
-export function getVariableId(expr: Expr): ExprId {
-  if (expr.kind !== 'variable') {
-    throw new Error(`Expected variable, got ${expr.kind}`);
+export function getVariableId(expr: Expr | Expression): ExprId {
+  const e = expr instanceof Expression ? expr.expr : expr;
+  if (e.kind !== 'variable') {
+    throw new Error(`Expected variable, got ${e.kind}`);
   }
-  return expr.id;
+  return e.id;
 }
 
 /**
  * Check if an expression is a variable.
  */
-export function isVariable(expr: Expr): expr is Extract<Expr, { kind: 'variable' }> {
-  return expr.kind === 'variable';
+export function isVariable(expr: Expr | Expression): boolean {
+  const e = expr instanceof Expression ? expr.expr : expr;
+  return e.kind === 'variable';
 }

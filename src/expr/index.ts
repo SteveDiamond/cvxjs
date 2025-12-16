@@ -56,3 +56,7 @@ export {
   getConstantData,
   getScalarConstant,
 } from './constant.js';
+
+// Expression wrapper class
+export { Expression, wrap, isExpression } from './expr-wrapper.js';
+export type { ExprInput, ArrayInput } from './expr-wrapper.js';

@@ -11,6 +11,15 @@ import { DcpError, SolverError, InfeasibleError, UnboundedError } from './error.
 import { isScalar } from './expr/shape.js';
 import { canonicalizeProblem, buildVariableMap, stuffProblem } from './canon/index.js';
 import { solveConic } from './solver/index.js';
+import {
+  collectVariableProps,
+  collectVariablePropsFromConstraint,
+  analyzeProblem,
+  selectSolver,
+  type VariableProps,
+} from './solver/router.js';
+import { solveLP } from './solver/highs.js';
+import { generateLP } from './solver/lp-format.js';
 
 /**
  * Objective sense for optimization.
@@ -261,14 +270,17 @@ export class Problem {
     // Validate DCP
     this.validateDcp();
 
-    // Collect all variables and their sizes
+    // Collect all variables and their sizes/properties
     const varIds = this.variables;
     const varSizes = new Map<ExprId, number>();
+    const varProps = new Map<ExprId, VariableProps>();
 
-    // Extract variable sizes from objective and constraints
+    // Extract variable sizes and properties from objective and constraints
     this.collectVariableSizes(this._objective, varSizes);
+    collectVariableProps(this._objective, varProps);
     for (const c of this._constraints) {
       this.collectVariableSizesFromConstraint(c, varSizes);
+      collectVariablePropsFromConstraint(c, varProps);
     }
 
     // Canonicalize the problem (may produce quadratic objective for QP)
@@ -287,7 +299,23 @@ export class Problem {
       objectiveQuadExpr
     );
 
-    // Call the solver
+    // Analyze problem and select solver
+    const analysis = analyzeProblem(varProps, stuffed.coneDims);
+    const solver = selectSolver(analysis);
+
+    if (solver === 'highs') {
+      return this.solveWithHiGHS(
+        varIds,
+        varProps,
+        objectiveLinExpr,
+        objectiveQuadExpr,
+        coneConstraints,
+        varMap,
+        objectiveOffset
+      );
+    }
+
+    // Default: use Clarabel for conic optimization
     const result = await solveConic(
       stuffed.P,
       stuffed.q,
@@ -352,6 +380,98 @@ export class Problem {
       dual: result.z ?? undefined,
       solveTime: result.solveTime,
       iterations: result.iterations,
+      valueOf,
+    };
+  }
+
+  /**
+   * Solve using HiGHS for LP/MIP problems.
+   */
+  private async solveWithHiGHS(
+    varIds: Set<ExprId>,
+    varProps: Map<ExprId, VariableProps>,
+    objectiveLinExpr: ReturnType<typeof canonicalizeProblem>['objectiveLinExpr'],
+    objectiveQuadExpr: ReturnType<typeof canonicalizeProblem>['objectiveQuadExpr'],
+    coneConstraints: ReturnType<typeof canonicalizeProblem>['coneConstraints'],
+    varMap: ReturnType<typeof buildVariableMap>,
+    objectiveOffset: number
+  ): Promise<Solution> {
+    // Verify no unsupported conic constraints
+    for (const c of coneConstraints) {
+      if (c.kind !== 'zero' && c.kind !== 'nonneg') {
+        throw new DcpError(
+          `HiGHS does not support ${c.kind} cone constraints. ` +
+            'Use continuous variables for conic optimization.'
+        );
+      }
+    }
+
+    // Generate LP format
+    const { lpString, varNames } = generateLP(
+      objectiveLinExpr,
+      coneConstraints,
+      varMap,
+      varProps,
+      this._sense,
+      objectiveQuadExpr
+    );
+
+    // Call HiGHS solver
+    const result = await solveLP(lpString, varNames, this._settings);
+
+    // Handle error statuses
+    if (result.status === 'infeasible') {
+      throw new InfeasibleError('Problem is infeasible');
+    }
+    if (result.status === 'unbounded') {
+      throw new UnboundedError('Problem is unbounded');
+    }
+    if (result.status === 'numerical_error') {
+      throw new SolverError('Solver encountered numerical difficulties');
+    }
+
+    // Extract solution values for original variables
+    let primal: Map<ExprId, Float64Array> | undefined;
+    let value: number | undefined;
+
+    if (result.status === 'optimal' && result.x) {
+      primal = new Map();
+
+      for (const varId of varIds) {
+        const mapping = varMap.idToCol.get(varId);
+        if (mapping) {
+          const varValues = new Float64Array(mapping.size);
+          for (let i = 0; i < mapping.size; i++) {
+            varValues[i] = result.x[mapping.start + i] ?? 0;
+          }
+          primal.set(varId, varValues);
+        }
+      }
+
+      // Compute objective value (add back offset, handle maximize)
+      value = result.objVal ?? 0;
+      value += objectiveOffset;
+
+      // For maximization, negate back
+      if (this._sense === 'maximize') {
+        value = -value;
+      }
+    }
+
+    // Create valueOf function that looks up variable values
+    const valueOf = (expr: Expr | ExprData): Float64Array | undefined => {
+      const e = expr instanceof Expr ? expr.data : expr;
+      if (e.kind !== 'variable') {
+        return undefined;
+      }
+      return primal?.get(e.id);
+    };
+
+    return {
+      status: result.status,
+      value,
+      primal,
+      solveTime: result.solveTime,
       valueOf,
     };
   }

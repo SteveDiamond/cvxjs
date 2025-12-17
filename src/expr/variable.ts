@@ -12,6 +12,10 @@ export interface VariableOptions {
   nonneg?: boolean;
   /** Constrain variable to be <= 0 */
   nonpos?: boolean;
+  /** Constrain variable to integer values (requires HiGHS solver) */
+  integer?: boolean;
+  /** Constrain variable to binary {0, 1} values (requires HiGHS solver) */
+  binary?: boolean;
 }
 
 /**
@@ -28,6 +32,8 @@ export class VariableBuilder {
   private _name?: string;
   private _nonneg = false;
   private _nonpos = false;
+  private _integer = false;
+  private _binary = false;
 
   constructor(shape: number | readonly [number] | readonly [number, number]) {
     this._shape = normalizeShape(shape);
@@ -53,6 +59,23 @@ export class VariableBuilder {
     return this;
   }
 
+  /** Constrain variable to integer values (requires HiGHS solver) */
+  integer(): this {
+    this._integer = true;
+    this._binary = false; // Mutually exclusive
+    return this;
+  }
+
+  /** Constrain variable to binary {0, 1} values (requires HiGHS solver) */
+  binary(): this {
+    this._binary = true;
+    this._integer = false; // Mutually exclusive
+    // Binary implies nonneg bounds
+    this._nonneg = true;
+    this._nonpos = false;
+    return this;
+  }
+
   /** Build the variable expression */
   build(): Expr {
     return new Expr({
@@ -62,6 +85,8 @@ export class VariableBuilder {
       name: this._name,
       nonneg: this._nonneg || undefined,
       nonpos: this._nonpos || undefined,
+      integer: this._integer || undefined,
+      binary: this._binary || undefined,
     });
   }
 }
@@ -87,6 +112,8 @@ export function variable(
   if (options?.name) builder.name(options.name);
   if (options?.nonneg) builder.nonneg();
   if (options?.nonpos) builder.nonpos();
+  if (options?.integer) builder.integer();
+  if (options?.binary) builder.binary();
   return builder.build();
 }
 
@@ -105,8 +132,10 @@ export function scalarVar(options?: VariableOptions): Expr {
     id: newExprId(),
     shape: scalar(),
     name: options?.name,
-    nonneg: options?.nonneg,
+    nonneg: options?.nonneg || options?.binary,
     nonpos: options?.nonpos,
+    integer: options?.integer,
+    binary: options?.binary,
   });
 }
 
@@ -125,8 +154,10 @@ export function vectorVar(n: number, options?: VariableOptions): Expr {
     id: newExprId(),
     shape: vector(n),
     name: options?.name,
-    nonneg: options?.nonneg,
+    nonneg: options?.nonneg || options?.binary,
     nonpos: options?.nonpos,
+    integer: options?.integer,
+    binary: options?.binary,
   });
 }
 
@@ -145,8 +176,10 @@ export function matrixVar(rows: number, cols: number, options?: VariableOptions)
     id: newExprId(),
     shape: matrix(rows, cols),
     name: options?.name,
-    nonneg: options?.nonneg,
+    nonneg: options?.nonneg || options?.binary,
     nonpos: options?.nonpos,
+    integer: options?.integer,
+    binary: options?.binary,
   });
 }
 

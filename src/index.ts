@@ -54,6 +54,7 @@ export {
   VariableBuilder,
   isVariable,
 } from './expr/index.js';
+export type { VariableOptions } from './expr/index.js';
 
 // === Constant Creation ===
 export { constant, zeros, ones, eye, isConstant } from './expr/index.js';
@@ -165,8 +166,9 @@ export { Problem } from './problem.js';
 
 // === Solver ===
 export { loadWasm, testWasm, clarabelVersion, solveConic } from './solver/index.js';
+export { loadHiGHS, solveLP } from './solver/index.js';
 
-export type { ConicSolveResult } from './solver/index.js';
+export type { ConicSolveResult, LPSolveResult } from './solver/index.js';
 
 // === Errors ===
 export {

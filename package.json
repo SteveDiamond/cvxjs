@@ -48,7 +48,8 @@
   },
   "dependencies": {
     "clarabel-wasm": "file:./wasm/pkg/bundler",
-    "clarabel-wasm-nodejs": "file:./wasm/pkg/nodejs"
+    "clarabel-wasm-nodejs": "file:./wasm/pkg/nodejs",
+    "highs": "^1.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",

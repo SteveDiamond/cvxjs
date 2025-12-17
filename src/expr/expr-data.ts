@@ -59,6 +59,8 @@ export type ExprData =
       readonly name?: string;
       readonly nonneg?: boolean;
       readonly nonpos?: boolean;
+      readonly integer?: boolean;
+      readonly binary?: boolean;
     }
   | {
       readonly kind: 'constant';

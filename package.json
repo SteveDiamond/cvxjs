@@ -43,6 +43,8 @@
     "example:power": "npx tsx examples/power.ts",
     "extract-simba": "npx tsx scripts/extract-simba-data.ts",
     "build:demo": "vite build --config vite.demo.config.js",
+    "dev:circuit": "vite dev --config vite.circuit-demo.config.js",
+    "build:circuit-demo": "vite build --config vite.circuit-demo.config.js",
     "test:browser": "npx serve -l 3000 .",
     "prepublishOnly": "npm run build && npm run test:run"
   },

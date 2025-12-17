@@ -1,0 +1,52 @@
+{
+  "simple_logic": {
+    "name": "Simple Logic",
+    "boardWidth": 6,
+    "boardHeight": 6,
+    "components": [
+      { "id": 0, "name": "AND", "width": 2, "height": 1, "color": "#38bdf8" },
+      { "id": 1, "name": "OR", "width": 2, "height": 1, "color": "#34d399" },
+      { "id": 2, "name": "REG", "width": 1, "height": 2, "color": "#fbbf24" },
+      { "id": 3, "name": "PAD", "width": 1, "height": 1, "color": "#a78bfa" }
+    ],
+    "nets": [
+      { "from": 0, "to": 2 },
+      { "from": 1, "to": 2 },
+      { "from": 2, "to": 3 }
+    ]
+  },
+  "alu_block": {
+    "name": "ALU Block",
+    "boardWidth": 8,
+    "boardHeight": 8,
+    "components": [
+      { "id": 0, "name": "ADD", "width": 2, "height": 2, "color": "#38bdf8" },
+      { "id": 1, "name": "MUL", "width": 2, "height": 2, "color": "#34d399" },
+      { "id": 2, "name": "MUX", "width": 2, "height": 1, "color": "#fbbf24" },
+      { "id": 3, "name": "REG", "width": 1, "height": 2, "color": "#fb7185" },
+      { "id": 4, "name": "OUT", "width": 1, "height": 1, "color": "#a78bfa" }
+    ],
+    "nets": [
+      { "from": 3, "to": 0 },
+      { "from": 0, "to": 2 },
+      { "from": 2, "to": 4 }
+    ]
+  },
+  "memory_ctrl": {
+    "name": "Memory Controller",
+    "boardWidth": 10,
+    "boardHeight": 10,
+    "components": [
+      { "id": 0, "name": "CTRL", "width": 3, "height": 2, "color": "#38bdf8" },
+      { "id": 1, "name": "ARB", "width": 2, "height": 2, "color": "#34d399" },
+      { "id": 2, "name": "BUF", "width": 2, "height": 1, "color": "#fbbf24" },
+      { "id": 3, "name": "FIFO", "width": 1, "height": 3, "color": "#fb7185" },
+      { "id": 4, "name": "IO", "width": 1, "height": 1, "color": "#a78bfa" }
+    ],
+    "nets": [
+      { "from": 0, "to": 1 },
+      { "from": 1, "to": 2 },
+      { "from": 2, "to": 3 }
+    ]
+  }
+}

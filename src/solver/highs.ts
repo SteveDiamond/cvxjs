@@ -107,6 +107,15 @@ export function getHiGHS(): HighsWasm {
 }
 
 /**
+ * Reset the HiGHS singleton instance.
+ * Useful for testing or recovering from WASM errors.
+ */
+export function resetHiGHS(): void {
+  highsInstance = null;
+  highsLoading = null;
+}
+
+/**
  * Result from solving an LP/MIP problem.
  */
 export interface LPSolveResult {
@@ -178,6 +187,8 @@ export async function solveLP(
   try {
     result = highs.solve(lpString, options);
   } catch (e) {
+    // Reset HiGHS on error to allow recovery
+    resetHiGHS();
     throw new SolverError(`HiGHS solver error: ${e instanceof Error ? e.message : String(e)}`);
   }
 

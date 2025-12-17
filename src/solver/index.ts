@@ -1,5 +1,5 @@
 export { loadWasm, getWasm, testWasm, clarabelVersion, solveConic } from './clarabel.js';
-export { loadHiGHS, getHiGHS, solveLP } from './highs.js';
+export { loadHiGHS, getHiGHS, solveLP, resetHiGHS } from './highs.js';
 export {
   collectVariableProps,
   collectVariablePropsFromConstraint,

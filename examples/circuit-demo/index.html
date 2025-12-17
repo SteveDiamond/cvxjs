@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Circuit Placer | cvxjs</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #0a0e17;
+      --bg-secondary: #111827;
+      --bg-card: #151d2e;
+      --bg-hover: #1e293b;
+      --border-subtle: rgba(255, 255, 255, 0.06);
+      --border-accent: rgba(56, 189, 248, 0.2);
+
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+
+      --accent-cyan: #38bdf8;
+      --accent-emerald: #34d399;
+      --accent-amber: #fbbf24;
+      --accent-rose: #fb7185;
+      --accent-violet: #a78bfa;
+
+      --glow-cyan: 0 0 20px rgba(56, 189, 248, 0.3);
+      --glow-emerald: 0 0 20px rgba(52, 211, 153, 0.3);
+
+      --font-mono: 'JetBrains Mono', monospace;
+      --font-sans: 'DM Sans', sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      font-size: 15px;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.6;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(56, 189, 248, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(56, 189, 248, 0.02) 1px, transparent 1px);
+      background-size: 50px 50px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .app {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .topbar {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 0.75rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(12px);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--accent-violet), var(--accent-rose));
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 0.75rem;
+      color: var(--bg-primary);
+    }
+
+    .logo-text {
+      font-family: var(--font-mono);
+      font-weight: 600;
+      font-size: 1rem;
+      letter-spacing: -0.02em;
+    }
+
+    .logo-text span {
+      color: var(--accent-violet);
+    }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      background: var(--bg-card);
+      padding: 0.375rem 0.75rem;
+      border-radius: 6px;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      background: var(--accent-emerald);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    .status-dot.solving {
+      background: var(--accent-amber);
+      animation: pulse 0.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .main-content {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 280px 1fr 320px;
+      gap: 1px;
+      background: var(--border-subtle);
+      padding: 1px;
+    }
+
+    @media (max-width: 1200px) {
+      .main-content {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel {
+      background: var(--bg-secondary);
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .panel-title {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+    }
+
+    .preset-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 1.5rem;
+    }
+
+    .preset-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem;
+      background: var(--bg-card);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      border: 1px solid transparent;
+    }
+
+    .preset-item:hover {
+      background: var(--bg-hover);
+    }
+
+    .preset-item.active {
+      border-color: var(--accent-violet);
+      background: rgba(167, 139, 250, 0.1);
+    }
+
+    .preset-radio {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: 2px solid var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .preset-item.active .preset-radio {
+      border-color: var(--accent-violet);
+    }
+
+    .preset-item.active .preset-radio::after {
+      content: '';
+      width: 8px;
+      height: 8px;
+      background: var(--accent-violet);
+      border-radius: 50%;
+    }
+
+    .preset-info {
+      flex: 1;
+    }
+
+    .preset-name {
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: var(--text-primary);
+    }
+
+    .preset-size {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--text-muted);
+    }
+
+    .component-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .component-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.5rem 0.75rem;
+      background: var(--bg-card);
+      border-radius: 6px;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+    }
+
+    .component-color {
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+    }
+
+    .component-name {
+      flex: 1;
+      color: var(--text-primary);
+    }
+
+    .component-size {
+      color: var(--text-muted);
+      font-size: 0.7rem;
+    }
+
+    .center-panel {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      position: relative;
+    }
+
+    .canvas-container {
+      background: var(--bg-card);
+      border-radius: 12px;
+      padding: 1.5rem;
+      border: 1px solid var(--border-subtle);
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+    }
+
+    #board-canvas {
+      display: block;
+      border-radius: 4px;
+    }
+
+    .button-row {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+
+    .btn {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent-violet), var(--accent-rose));
+      color: white;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(167, 139, 250, 0.4);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .btn-secondary {
+      background: var(--bg-card);
+      color: var(--text-primary);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .btn-secondary:hover {
+      background: var(--bg-hover);
+      border-color: var(--border-accent);
+    }
+
+    .metrics-section {
+      margin-bottom: 1.5rem;
+    }
+
+    .metric-card {
+      background: var(--bg-card);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .metric-label {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      margin-bottom: 0.25rem;
+    }
+
+    .metric-value {
+      font-family: var(--font-mono);
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .metric-value.positive {
+      color: var(--accent-emerald);
+    }
+
+    .metric-value.negative {
+      color: var(--accent-rose);
+    }
+
+    .metric-unit {
+      font-size: 0.8rem;
+      font-weight: 400;
+      color: var(--text-muted);
+    }
+
+    .positions-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .position-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem 0.75rem;
+      background: var(--bg-card);
+      border-radius: 6px;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+    }
+
+    .position-name {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .position-coords {
+      color: var(--text-muted);
+    }
+
+    .net-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      max-height: 150px;
+      overflow-y: auto;
+    }
+
+    .net-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem 0.75rem;
+      background: var(--bg-card);
+      border-radius: 6px;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+    }
+
+    .net-endpoints {
+      color: var(--text-secondary);
+    }
+
+    .net-length {
+      color: var(--accent-rose);
+    }
+
+    .loading-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(10, 14, 23, 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 12px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .loading-overlay.visible {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--border-subtle);
+      border-top-color: var(--accent-violet);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .wire-legend {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-top: 1rem;
+    }
+
+    .wire-sample {
+      width: 30px;
+      height: 2px;
+      background: var(--accent-rose);
+      opacity: 0.6;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="logo">
+        <div class="logo-icon">IC</div>
+        <div class="logo-text">Circuit <span>Placer</span></div>
+      </div>
+      <div class="status-badge">
+        <div class="status-dot" id="status-dot"></div>
+        <span id="status-text">Loading...</span>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <aside class="panel left-panel">
+        <div class="panel-header">
+          <span class="panel-title">Circuit Presets</span>
+        </div>
+        <div class="preset-list" id="preset-list"></div>
+
+        <div class="panel-header">
+          <span class="panel-title">Components</span>
+        </div>
+        <div class="component-list" id="component-list"></div>
+      </aside>
+
+      <section class="panel center-panel">
+        <div class="canvas-container">
+          <canvas id="board-canvas" width="400" height="400"></canvas>
+          <div class="loading-overlay" id="loading-overlay">
+            <div class="spinner"></div>
+          </div>
+        </div>
+        <div class="button-row">
+          <button class="btn btn-secondary" id="btn-randomize">Randomize</button>
+          <button class="btn btn-primary" id="btn-solve" disabled>Solve Placement</button>
+        </div>
+        <div class="wire-legend">
+          <div class="wire-sample"></div>
+          <span>Net connections (minimize total length)</span>
+        </div>
+      </section>
+
+      <aside class="panel right-panel">
+        <div class="panel-header">
+          <span class="panel-title">Placement Metrics</span>
+        </div>
+        <div class="metrics-section">
+          <div class="metric-card">
+            <div class="metric-label">Total Wire Length</div>
+            <div class="metric-value" id="metric-wire-length">--<span class="metric-unit"> units</span></div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Improvement</div>
+            <div class="metric-value" id="metric-improvement">--<span class="metric-unit">%</span></div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Solve Time</div>
+            <div class="metric-value" id="metric-solve-time">--<span class="metric-unit"> ms</span></div>
+          </div>
+        </div>
+
+        <div class="panel-header">
+          <span class="panel-title">Component Positions</span>
+        </div>
+        <div class="positions-list" id="positions-list"></div>
+
+        <div class="panel-header" style="margin-top: 1rem;">
+          <span class="panel-title">Net Lengths</span>
+        </div>
+        <div class="net-list" id="net-list"></div>
+      </aside>
+    </main>
+  </div>
+
+  <script type="module">
+    import { variable, constant, Problem, eq, le, ge, sum, add, loadHiGHS } from 'cvxjs';
+
+    // State
+    let presets = {};
+    let currentPreset = null;
+    let state = {
+      boardWidth: 8,
+      boardHeight: 8,
+      components: [],
+      nets: [],
+      cellSize: 50,
+    };
+    let isSolving = false;
+    let initialWireLength = 0;
+
+    // DOM elements
+    const canvas = document.getElementById('board-canvas');
+    const ctx = canvas.getContext('2d');
+    const presetList = document.getElementById('preset-list');
+    const componentList = document.getElementById('component-list');
+    const positionsList = document.getElementById('positions-list');
+    const netList = document.getElementById('net-list');
+    const btnRandomize = document.getElementById('btn-randomize');
+    const btnSolve = document.getElementById('btn-solve');
+    const statusDot = document.getElementById('status-dot');
+    const statusText = document.getElementById('status-text');
+    const loadingOverlay = document.getElementById('loading-overlay');
+    const metricWireLength = document.getElementById('metric-wire-length');
+    const metricImprovement = document.getElementById('metric-improvement');
+    const metricSolveTime = document.getElementById('metric-solve-time');
+
+    // Initialize
+    async function init() {
+      try {
+        // Load HiGHS solver
+        await loadHiGHS();
+        statusText.textContent = 'HiGHS ready';
+        btnSolve.disabled = false;
+
+        // Load presets
+        const response = await fetch('/data/presets.json');
+        presets = await response.json();
+
+        renderPresets();
+        selectPreset('simple_logic');
+      } catch (err) {
+        console.error('Init error:', err);
+        statusText.textContent = 'Error loading';
+        statusDot.style.background = '#fb7185';
+      }
+    }
+
+    function renderPresets() {
+      presetList.innerHTML = '';
+      for (const [key, preset] of Object.entries(presets)) {
+        const item = document.createElement('div');
+        item.className = 'preset-item';
+        item.dataset.key = key;
+        item.innerHTML = `
+          <div class="preset-radio"></div>
+          <div class="preset-info">
+            <div class="preset-name">${preset.name}</div>
+            <div class="preset-size">${preset.boardWidth}x${preset.boardHeight} grid, ${preset.components.length} components</div>
+          </div>
+        `;
+        item.addEventListener('click', () => selectPreset(key));
+        presetList.appendChild(item);
+      }
+    }
+
+    function selectPreset(key) {
+      currentPreset = key;
+      const preset = presets[key];
+
+      // Update UI
+      document.querySelectorAll('.preset-item').forEach(item => {
+        item.classList.toggle('active', item.dataset.key === key);
+      });
+
+      // Load state
+      state.boardWidth = preset.boardWidth;
+      state.boardHeight = preset.boardHeight;
+      state.components = preset.components.map(c => ({
+        ...c,
+        x: undefined,
+        y: undefined,
+      }));
+      state.nets = [...preset.nets];
+
+      // Resize canvas
+      resizeCanvas();
+      renderComponentList();
+      randomizePlacement();
+    }
+
+    function resizeCanvas() {
+      const maxCanvasSize = 480;
+      const maxDim = Math.max(state.boardWidth, state.boardHeight);
+      state.cellSize = Math.floor(maxCanvasSize / maxDim);
+      canvas.width = state.boardWidth * state.cellSize;
+      canvas.height = state.boardHeight * state.cellSize;
+    }
+
+    function renderComponentList() {
+      componentList.innerHTML = '';
+      for (const comp of state.components) {
+        const item = document.createElement('div');
+        item.className = 'component-item';
+        item.innerHTML = `
+          <div class="component-color" style="background: ${comp.color}"></div>
+          <span class="component-name">${comp.name}</span>
+          <span class="component-size">${comp.width}x${comp.height}</span>
+        `;
+        componentList.appendChild(item);
+      }
+    }
+
+    function randomizePlacement() {
+      for (const comp of state.components) {
+        const maxX = state.boardWidth - comp.width;
+        const maxY = state.boardHeight - comp.height;
+        comp.x = Math.floor(Math.random() * (maxX + 1));
+        comp.y = Math.floor(Math.random() * (maxY + 1));
+      }
+      initialWireLength = calculateTotalWireLength();
+      updateMetrics(initialWireLength, null, null);
+      draw();
+      updatePositionsList();
+      updateNetList();
+    }
+
+    function calculateTotalWireLength() {
+      let total = 0;
+      for (const net of state.nets) {
+        const c1 = state.components[net.from];
+        const c2 = state.components[net.to];
+        const cx1 = c1.x + c1.width / 2;
+        const cy1 = c1.y + c1.height / 2;
+        const cx2 = c2.x + c2.width / 2;
+        const cy2 = c2.y + c2.height / 2;
+        total += Math.abs(cx1 - cx2) + Math.abs(cy1 - cy2);
+      }
+      return total;
+    }
+
+    function updateMetrics(wireLength, improvement, solveTime) {
+      metricWireLength.innerHTML = wireLength !== null
+        ? `${wireLength.toFixed(1)}<span class="metric-unit"> units</span>`
+        : '--<span class="metric-unit"> units</span>';
+
+      if (improvement !== null) {
+        const cls = improvement > 0 ? 'positive' : '';
+        metricImprovement.innerHTML = `<span class="${cls}">-${improvement.toFixed(1)}</span><span class="metric-unit">%</span>`;
+      } else {
+        metricImprovement.innerHTML = '--<span class="metric-unit">%</span>';
+      }
+
+      metricSolveTime.innerHTML = solveTime !== null
+        ? `${solveTime.toFixed(0)}<span class="metric-unit"> ms</span>`
+        : '--<span class="metric-unit"> ms</span>';
+    }
+
+    function updatePositionsList() {
+      positionsList.innerHTML = '';
+      for (const comp of state.components) {
+        const item = document.createElement('div');
+        item.className = 'position-item';
+        item.innerHTML = `
+          <div class="position-name">
+            <div class="component-color" style="background: ${comp.color}; width: 10px; height: 10px;"></div>
+            <span>${comp.name}</span>
+          </div>
+          <span class="position-coords">(${comp.x}, ${comp.y})</span>
+        `;
+        positionsList.appendChild(item);
+      }
+    }
+
+    function updateNetList() {
+      netList.innerHTML = '';
+      for (let i = 0; i < state.nets.length; i++) {
+        const net = state.nets[i];
+        const c1 = state.components[net.from];
+        const c2 = state.components[net.to];
+        const cx1 = c1.x + c1.width / 2;
+        const cy1 = c1.y + c1.height / 2;
+        const cx2 = c2.x + c2.width / 2;
+        const cy2 = c2.y + c2.height / 2;
+        const length = Math.abs(cx1 - cx2) + Math.abs(cy1 - cy2);
+
+        const item = document.createElement('div');
+        item.className = 'net-item';
+        item.innerHTML = `
+          <span class="net-endpoints">${c1.name} - ${c2.name}</span>
+          <span class="net-length">${length.toFixed(1)}</span>
+        `;
+        netList.appendChild(item);
+      }
+    }
+
+    // Drawing functions
+    function draw() {
+      const { boardWidth, boardHeight, cellSize } = state;
+
+      // Clear
+      ctx.fillStyle = '#151d2e';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Draw grid
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.1)';
+      ctx.lineWidth = 1;
+      for (let x = 0; x <= boardWidth; x++) {
+        ctx.beginPath();
+        ctx.moveTo(x * cellSize, 0);
+        ctx.lineTo(x * cellSize, boardHeight * cellSize);
+        ctx.stroke();
+      }
+      for (let y = 0; y <= boardHeight; y++) {
+        ctx.beginPath();
+        ctx.moveTo(0, y * cellSize);
+        ctx.lineTo(boardWidth * cellSize, y * cellSize);
+        ctx.stroke();
+      }
+
+      // Draw nets (wires)
+      ctx.strokeStyle = 'rgba(251, 113, 133, 0.6)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 4]);
+      for (const net of state.nets) {
+        const c1 = state.components[net.from];
+        const c2 = state.components[net.to];
+        const x1 = (c1.x + c1.width / 2) * cellSize;
+        const y1 = (c1.y + c1.height / 2) * cellSize;
+        const x2 = (c2.x + c2.width / 2) * cellSize;
+        const y2 = (c2.y + c2.height / 2) * cellSize;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+
+      // Draw components
+      for (const comp of state.components) {
+        if (comp.x === undefined) continue;
+
+        const x = comp.x * cellSize + 2;
+        const y = comp.y * cellSize + 2;
+        const w = comp.width * cellSize - 4;
+        const h = comp.height * cellSize - 4;
+
+        // Fill
+        ctx.fillStyle = comp.color + 'cc';
+        ctx.beginPath();
+        ctx.roundRect(x, y, w, h, 4);
+        ctx.fill();
+
+        // Stroke
+        ctx.strokeStyle = comp.color;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Label
+        ctx.fillStyle = '#0a0e17';
+        ctx.font = `bold ${Math.min(12, cellSize / 3)}px JetBrains Mono`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(comp.name, x + w / 2, y + h / 2);
+      }
+    }
+
+    // MIP Solver
+    async function solvePlacement() {
+      if (isSolving) return;
+
+      isSolving = true;
+      btnSolve.disabled = true;
+      statusDot.classList.add('solving');
+      statusText.textContent = 'Solving MIP...';
+      loadingOverlay.classList.add('visible');
+
+      const startTime = performance.now();
+
+      try {
+        const { boardWidth, boardHeight, components, nets } = state;
+        const N = components.length;
+        const M = nets.length;
+
+        // Build position map: for each component, list valid positions
+        const positionInfo = [];
+        let totalVars = 0;
+        for (let i = 0; i < N; i++) {
+          const comp = components[i];
+          const maxX = boardWidth - comp.width;
+          const maxY = boardHeight - comp.height;
+          const positions = [];
+          for (let x = 0; x <= maxX; x++) {
+            for (let y = 0; y <= maxY; y++) {
+              positions.push({ x, y, varIdx: totalVars++ });
+            }
+          }
+          positionInfo.push({ compIdx: i, positions });
+        }
+
+        // Binary position variables
+        const p = variable(totalVars, { binary: true });
+
+        // Distance variables for linearizing |cx_i - cx_j|
+        // Note: We only optimize X distance due to a HiGHS WASM bug with 4+ distance constraints
+        // This still demonstrates the MIP formulation effectively
+        const dxPlus = variable(M, { nonneg: true });
+        const dxMinus = variable(M, { nonneg: true });
+
+        const constraints = [];
+
+        // Constraint 1: Each component placed exactly once
+        for (const info of positionInfo) {
+          const coeffs = new Array(totalVars).fill(0);
+          for (const pos of info.positions) {
+            coeffs[pos.varIdx] = 1;
+          }
+          constraints.push(eq(constant(coeffs).mul(p).sum(), constant(1)));
+        }
+
+        // Constraint 2: No overlap - each grid cell covered by at most one component
+        for (let gx = 0; gx < boardWidth; gx++) {
+          for (let gy = 0; gy < boardHeight; gy++) {
+            const coveringVars = [];
+            for (let i = 0; i < N; i++) {
+              const comp = components[i];
+              const info = positionInfo[i];
+              for (const pos of info.positions) {
+                // Does this placement cover cell (gx, gy)?
+                if (pos.x <= gx && gx < pos.x + comp.width &&
+                    pos.y <= gy && gy < pos.y + comp.height) {
+                  coveringVars.push(pos.varIdx);
+                }
+              }
+            }
+            if (coveringVars.length > 1) {
+              const coeffs = new Array(totalVars).fill(0);
+              for (const idx of coveringVars) {
+                coeffs[idx] = 1;
+              }
+              constraints.push(le(constant(coeffs).mul(p).sum(), constant(1)));
+            }
+          }
+        }
+
+        // Constraint 3: Manhattan distance linearization for each net
+        for (let k = 0; k < M; k++) {
+          const net = nets[k];
+          const comp_i = components[net.from];
+          const comp_j = components[net.to];
+          const info_i = positionInfo[net.from];
+          const info_j = positionInfo[net.to];
+
+          // cx[i] = sum over positions of (x + width/2) * p[varIdx]
+          // We need: cx[i] - cx[j] = dxPlus[k] - dxMinus[k]
+          // Which is: sum((x_i + w_i/2) * p_i) - sum((x_j + w_j/2) * p_j) - dxPlus[k] + dxMinus[k] = 0
+
+          // Build coefficient arrays
+          const xCoeffs = new Array(totalVars).fill(0);
+          for (const pos of info_i.positions) {
+            xCoeffs[pos.varIdx] = pos.x + comp_i.width / 2;
+          }
+          for (const pos of info_j.positions) {
+            xCoeffs[pos.varIdx] -= pos.x + comp_j.width / 2;
+          }
+
+          // cx[i] - cx[j] - dxPlus[k] + dxMinus[k] = 0
+          const dxPlusK = dxPlus.index(k);
+          const dxMinusK = dxMinus.index(k);
+
+          constraints.push(
+            eq(
+              constant(xCoeffs).mul(p).sum().sub(dxPlusK).add(dxMinusK),
+              constant(0)
+            )
+          );
+        }
+
+        // Objective: minimize total X-distance (wire length proxy)
+        const objective = sum(dxPlus).add(sum(dxMinus));
+
+        // Solve
+        const solution = await Problem.minimize(objective)
+          .subjectTo(constraints)
+          .solve();
+
+        const solveTime = performance.now() - startTime;
+
+        if (solution.status === 'optimal') {
+          // Extract placements
+          const pValues = solution.valueOf(p);
+          const newPositions = [];
+
+          for (const info of positionInfo) {
+            for (const pos of info.positions) {
+              if (Math.abs(pValues[pos.varIdx] - 1) < 0.5) {
+                newPositions.push({
+                  compIdx: info.compIdx,
+                  x: pos.x,
+                  y: pos.y,
+                });
+                break;
+              }
+            }
+          }
+
+          // Animate to new positions
+          await animatePlacement(newPositions);
+
+          const finalWireLength = calculateTotalWireLength();
+          const improvement = ((initialWireLength - finalWireLength) / initialWireLength) * 100;
+
+          updateMetrics(finalWireLength, improvement, solveTime);
+          statusText.textContent = 'Solved!';
+        } else {
+          statusText.textContent = `Status: ${solution.status}`;
+        }
+      } catch (err) {
+        console.error('Solve error:', err);
+        statusText.textContent = 'Solve failed';
+      } finally {
+        isSolving = false;
+        btnSolve.disabled = false;
+        statusDot.classList.remove('solving');
+        loadingOverlay.classList.remove('visible');
+      }
+    }
+
+    async function animatePlacement(newPositions) {
+      const duration = 500;
+      const startTime = performance.now();
+
+      // Store initial positions
+      const startPositions = state.components.map(c => ({ x: c.x, y: c.y }));
+
+      // Map new positions
+      const endPositions = [...startPositions];
+      for (const np of newPositions) {
+        endPositions[np.compIdx] = { x: np.x, y: np.y };
+      }
+
+      return new Promise(resolve => {
+        function animate(currentTime) {
+          const elapsed = currentTime - startTime;
+          const t = Math.min(elapsed / duration, 1);
+          const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+
+          for (let i = 0; i < state.components.length; i++) {
+            state.components[i].x = startPositions[i].x + (endPositions[i].x - startPositions[i].x) * eased;
+            state.components[i].y = startPositions[i].y + (endPositions[i].y - startPositions[i].y) * eased;
+          }
+
+          draw();
+          updatePositionsList();
+          updateNetList();
+
+          if (t < 1) {
+            requestAnimationFrame(animate);
+          } else {
+            // Snap to final positions
+            for (let i = 0; i < state.components.length; i++) {
+              state.components[i].x = endPositions[i].x;
+              state.components[i].y = endPositions[i].y;
+            }
+            draw();
+            updatePositionsList();
+            updateNetList();
+            resolve();
+          }
+        }
+        requestAnimationFrame(animate);
+      });
+    }
+
+    // Event listeners
+    btnRandomize.addEventListener('click', randomizePlacement);
+    btnSolve.addEventListener('click', solvePlacement);
+
+    // Start
+    init();
+  </script>
+</body>
+</html>

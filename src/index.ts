@@ -166,7 +166,7 @@ export { Problem } from './problem.js';
 
 // === Solver ===
 export { loadWasm, testWasm, clarabelVersion, solveConic } from './solver/index.js';
-export { loadHiGHS, solveLP } from './solver/index.js';
+export { loadHiGHS, solveLP, resetHiGHS } from './solver/index.js';
 
 export type { ConicSolveResult, LPSolveResult } from './solver/index.js';
 

@@ -260,4 +260,34 @@ describe('Solver Integration', () => {
       expect(solution.value).toBeGreaterThanOrEqual(0);
     });
   });
+
+  describe('Dual Variables', () => {
+    it('returns dual variables (shadow prices) for LP', async () => {
+      // minimize sum(x) subject to x >= 1
+      // Dual variable for each constraint x_i >= 1 should be 1
+      const x = variable(3);
+      const solution = await Problem.minimize(sum(x))
+        .subjectTo([ge(x, constant([1, 1, 1]))])
+        .solve();
+
+      expect(solution.status).toBe('optimal');
+      expect(solution.dual).toBeDefined();
+      // Should have dual values for the nonneg constraints
+      expect(solution.dual!.length).toBeGreaterThan(0);
+    });
+
+    it('returns dual variables for equality constraints', async () => {
+      // minimize x subject to x = 5
+      // Dual variable should be -1 (marginal cost of relaxing equality)
+      const x = variable(1);
+      const solution = await Problem.minimize(sum(x))
+        .subjectTo([eq(x, constant([5]))])
+        .solve();
+
+      expect(solution.status).toBe('optimal');
+      expect(solution.value).toBeCloseTo(5, 5);
+      expect(solution.dual).toBeDefined();
+      expect(solution.dual!.length).toBeGreaterThan(0);
+    });
+  });
 });

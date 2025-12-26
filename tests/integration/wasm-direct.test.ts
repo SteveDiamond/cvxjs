@@ -81,19 +81,14 @@ describe('Direct WASM Tests', () => {
       power: [],
     };
 
-    console.log('Calling solveConic with:');
-    console.log('  P:', P);
-    console.log('  q:', q);
-    console.log('  A:', A);
-    console.log('  b:', b);
-    console.log('  coneDims:', coneDims);
-
     const result = await solveConic(P, q, A, b, coneDims, { verbose: true });
-
-    console.log('Result:', result);
 
     expect(result.status).toBe('optimal');
     expect(result.objVal).toBeCloseTo(1, 5); // x* = 1
+    expect(result.z).toBeDefined();
+    expect(result.z!.length).toBe(1);
+    // Dual variable for x >= 1 constraint should be 1 (marginal cost)
+    expect(result.z![0]).toBeCloseTo(1, 5);
   });
 
   it('solves 1-variable LP with equality', async () => {
@@ -117,9 +112,13 @@ describe('Direct WASM Tests', () => {
     };
 
     const result = await solveConic(P, q, A, b, coneDims, {});
-    console.log('Equality constraint result:', result);
 
     expect(result.status).toBe('optimal');
     expect(result.objVal).toBeCloseTo(2, 5);
+    expect(result.z).toBeDefined();
+    expect(result.z!.length).toBe(1);
+    // Dual variable for equality constraint x = 2
+    // Since we're minimizing x, the shadow price is -1
+    expect(result.z![0]).toBeCloseTo(-1, 5);
   });
 });

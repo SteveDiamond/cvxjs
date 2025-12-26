@@ -13,6 +13,8 @@ pub struct SolveResult {
     pub obj_val: Option<f64>,
     /// Primal solution vector
     pub x: Option<Vec<f64>>,
+    /// Dual solution vector (shadow prices for constraints)
+    pub z: Option<Vec<f64>>,
     /// Solve time in seconds
     pub solve_time: f64,
     /// Number of iterations
@@ -140,6 +142,7 @@ pub fn solve(
                 status: format!("error: invalid cone spec: {}", e),
                 obj_val: None,
                 x: None,
+                z: None,
                 solve_time: 0.0,
                 iterations: 0,
             };
@@ -209,6 +212,11 @@ pub fn solve(
             } else {
                 None
             },
+            z: if solution.status == SolverStatus::Solved {
+                Some(solution.z.clone())
+            } else {
+                None
+            },
             solve_time: info.solve_time,
             iterations: info.iterations,
         }
@@ -228,6 +236,7 @@ pub fn solve(
                 status: format!("error: solver panic: {}", msg),
                 obj_val: None,
                 x: None,
+                z: None,
                 solve_time: 0.0,
                 iterations: 0,
             }
